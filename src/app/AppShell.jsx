@@ -1,10 +1,21 @@
 import { Bell, Check, Search, Settings } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import MessagesPanel from '../features/messages/MessagesPanel.jsx';
 import ProfilePage from '../features/profile/ProfilePage.jsx';
 import ProfilePanel from '../features/profile/ProfilePanel.jsx';
 import { currentUser as seedUser, initialPosts, people } from '../shared/data/socialData.js';
+import {
+  createComment as createRemoteComment,
+  createPost as createRemotePost,
+  ensureDemoProfile,
+  fetchPosts,
+  getReactionTypeByKey,
+  isSupabaseConfigured,
+  toggleReaction,
+  updateProfile as updateRemoteProfile,
+} from '../shared/api/socialApi.js';
+import { supabase } from '../shared/lib/supabase.js';
 import { buildHashtagTrends } from '../shared/utils/hashtags.js';
 import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
@@ -23,8 +34,50 @@ export default function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const [notificationsRead, setNotificationsRead] = useState(false);
+  const [backendReady, setBackendReady] = useState(!isSupabaseConfigured);
+  const [backendError, setBackendError] = useState('');
 
   const notificationCount = notificationsRead ? 0 : 3;
+
+  const loadRemotePosts = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
+    try {
+      setBackendError('');
+      const remoteUser = await ensureDemoProfile();
+      const remotePosts = await fetchPosts(remoteUser.id);
+
+      setCurrentUser(remoteUser);
+      setPosts(remotePosts);
+    } catch (error) {
+      setBackendError(error.message);
+    } finally {
+      setBackendReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadRemotePosts);
+  }, [loadRemotePosts]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return undefined;
+    }
+
+    const channel = supabase
+      .channel('default-sqd-social-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, loadRemotePosts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, loadRemotePosts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, loadRemotePosts)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadRemotePosts]);
 
   useEffect(() => {
     if (!notificationsOpen && !settingsOpen) {
@@ -81,7 +134,18 @@ export default function AppShell() {
 
   const hashtagTrends = useMemo(() => buildHashtagTrends(posts), [posts]);
 
-  const addPost = ({ hashtags, mediaAttached = false, text }) => {
+  const addPost = async ({ hashtags, mediaAttached = false, text }) => {
+    if (isSupabaseConfigured) {
+      try {
+        const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, mediaAttached, text });
+        setPosts(remotePosts);
+      } catch (error) {
+        setBackendError(error.message);
+      }
+
+      return;
+    }
+
     setPosts((currentPosts) => [
       {
         id: currentPosts.length + 1,
@@ -107,7 +171,18 @@ export default function AppShell() {
     ]);
   };
 
-  const addComment = (postId, text) => {
+  const addComment = async (postId, text) => {
+    if (isSupabaseConfigured) {
+      try {
+        const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
+        setPosts(remotePosts);
+      } catch (error) {
+        setBackendError(error.message);
+      }
+
+      return;
+    }
+
     setPosts((currentPosts) =>
       currentPosts.map((post) =>
         post.id === postId
@@ -129,29 +204,61 @@ export default function AppShell() {
     );
   };
 
-  const updateProfile = (updater) => {
-    setCurrentUser((profile) => {
-      const nextProfile = typeof updater === 'function' ? updater(profile) : updater;
+  const updateProfile = async (updater) => {
+    const nextProfile = typeof updater === 'function' ? updater(currentUser) : updater;
 
-      setPosts((currentPosts) =>
-        currentPosts.map((post) =>
-          post.ownerId === profile.id
-            ? {
-                ...post,
-                author: nextProfile.name,
-                userId: nextProfile.userId,
-                avatar: nextProfile.avatar,
-                avatarImage: nextProfile.avatarImage,
-              }
-            : post,
-        ),
-      );
+    if (isSupabaseConfigured) {
+      try {
+        const remoteProfile = await updateRemoteProfile(nextProfile);
+        setCurrentUser(remoteProfile);
+        await loadRemotePosts();
+      } catch (error) {
+        setBackendError(error.message);
+      }
 
-      return nextProfile;
-    });
+      return;
+    }
+
+    setCurrentUser(nextProfile);
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.ownerId === currentUser.id
+          ? {
+              ...post,
+              author: nextProfile.name,
+              userId: nextProfile.userId,
+              avatar: nextProfile.avatar,
+              avatarImage: nextProfile.avatarImage,
+            }
+          : post,
+      ),
+    );
   };
 
-  const togglePost = (postId, key) => {
+  const togglePost = async (postId, key) => {
+    if (isSupabaseConfigured) {
+      const type = getReactionTypeByKey(key);
+      const post = posts.find((item) => item.id === postId);
+
+      if (!type || !post) {
+        return;
+      }
+
+      try {
+        const remotePosts = await toggleReaction({
+          active: Boolean(post[key]),
+          currentUserId: currentUser.id,
+          postId,
+          type,
+        });
+        setPosts(remotePosts);
+      } catch (error) {
+        setBackendError(error.message);
+      }
+
+      return;
+    }
+
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
         if (post.id !== postId) {
@@ -289,6 +396,18 @@ export default function AppShell() {
           value={query}
         />
       </label>
+
+      {backendError ? (
+        <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-warning/45 bg-warning/10 px-3 py-2 font-ui text-sm text-warning">
+          Supabase: {backendError}
+        </div>
+      ) : null}
+
+      {!backendReady ? (
+        <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-border bg-surface/80 px-3 py-2 font-ui text-sm text-text-soft">
+          Загружаем ленту из Supabase...
+        </div>
+      ) : null}
 
       <main className="mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-4 lg:self-start">
