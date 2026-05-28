@@ -73,3 +73,10 @@ npm run supabase:link
 npm run supabase:db:push
 npm run supabase:db:reset
 ```
+
+
+## Closed authentication
+
+This project uses Supabase Auth for the release build. The published app shows a login screen when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured.
+
+Run the Supabase scripts in `supabase/` and then create users in Supabase Dashboard -> Authentication -> Users. Do not commit passwords, service-role keys, or real credentials to the repository.

@@ -1,4 +1,4 @@
-import { Bell, Check, Search, Settings } from 'lucide-react';
+import { Bell, Check, LogOut, Search, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import MessagesPanel from '../features/messages/MessagesPanel.jsx';
@@ -8,7 +8,6 @@ import { currentUser as seedUser, initialPosts, people } from '../shared/data/so
 import {
   createComment as createRemoteComment,
   createPost as createRemotePost,
-  ensureDemoProfile,
   fetchPosts,
   getReactionTypeByKey,
   isSupabaseConfigured,
@@ -21,11 +20,11 @@ import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
 import Panel from '../shared/ui/Panel.jsx';
 
-export default function AppShell() {
+export default function AppShell({ authenticatedUser = null, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
   const [activeView, setActiveView] = useState('feed');
-  const [currentUser, setCurrentUser] = useState(seedUser);
+  const [currentUser, setCurrentUser] = useState(authenticatedUser || seedUser);
   const [posts, setPosts] = useState(initialPosts);
   const [query, setQuery] = useState('');
   const [activeTopic, setActiveTopic] = useState('all');
@@ -38,6 +37,7 @@ export default function AppShell() {
   const [backendError, setBackendError] = useState('');
 
   const notificationCount = notificationsRead ? 0 : 3;
+  const displayedBackendError = backendError || authError;
 
   const loadRemotePosts = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -45,18 +45,20 @@ export default function AppShell() {
     }
 
     try {
-      setBackendError('');
-      const remoteUser = await ensureDemoProfile();
-      const remotePosts = await fetchPosts(remoteUser.id);
+      if (!currentUser?.id) {
+        return;
+      }
 
-      setCurrentUser(remoteUser);
+      setBackendError('');
+      const remotePosts = await fetchPosts(currentUser.id);
+
       setPosts(remotePosts);
     } catch (error) {
       setBackendError(error.message);
     } finally {
       setBackendReady(true);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     void Promise.resolve().then(loadRemotePosts);
@@ -381,6 +383,10 @@ export default function AppShell() {
           ) : null}
         </div>
 
+        {isSupabaseConfigured ? (
+          <IconButton icon={LogOut} label="Выйти" onClick={onSignOut} />
+        ) : null}
+
         <button aria-label="Открыть профиль" onClick={showProfile} type="button">
           <Avatar image={displayedUser.avatarImage} label={displayedUser.avatar} active />
         </button>
@@ -397,9 +403,9 @@ export default function AppShell() {
         />
       </label>
 
-      {backendError ? (
+      {displayedBackendError ? (
         <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-warning/45 bg-warning/10 px-3 py-2 font-ui text-sm text-warning">
-          Supabase: {backendError}
+          Supabase: {displayedBackendError}
         </div>
       ) : null}
 
