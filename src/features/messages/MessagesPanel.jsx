@@ -1,0 +1,242 @@
+import { MessageSquarePlus, Search, SendHorizonal } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { conversations as seedConversations, initialMessages } from '../../shared/data/socialData.js';
+import Avatar from '../../shared/ui/Avatar.jsx';
+import IconButton from '../../shared/ui/IconButton.jsx';
+import Panel from '../../shared/ui/Panel.jsx';
+
+function getParticipant(conversation, people) {
+  return people.find((person) => person.id === conversation.participantId);
+}
+
+export default function MessagesPanel({ currentUser, expanded = false, people = [] }) {
+  const [activeId, setActiveId] = useState(seedConversations[0]?.id);
+  const [conversations, setConversations] = useState(seedConversations);
+  const [draft, setDraft] = useState('');
+  const [messagesByConversation, setMessagesByConversation] = useState(initialMessages);
+  const [query, setQuery] = useState('');
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+
+  const filteredConversations = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return conversations.filter((conversation) => {
+      const participant = getParticipant(conversation, people);
+      const searchable = `${participant?.name ?? ''} ${participant?.userId ?? ''} ${conversation.message}`.toLowerCase();
+      return !normalizedQuery || searchable.includes(normalizedQuery);
+    });
+  }, [conversations, people, query]);
+
+  const availablePeople = useMemo(() => {
+    const activeParticipantIds = new Set(conversations.map((conversation) => conversation.participantId));
+    return people.filter((person) => person.id !== currentUser?.id && !activeParticipantIds.has(person.id));
+  }, [conversations, currentUser?.id, people]);
+
+  const activeConversation = conversations.find((conversation) => conversation.id === activeId) ?? conversations[0];
+  const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
+  const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
+
+  const createChat = (person) => {
+    const id = `chat_${person.userId}_${conversations.length + 1}`;
+    const nextConversation = {
+      id,
+      participantId: person.id,
+      message: `Диалог с ${person.name} создан.`,
+      time: 'сейчас',
+      unread: 0,
+    };
+
+    setConversations((items) => [nextConversation, ...items]);
+    setMessagesByConversation((items) => ({ ...items, [id]: [] }));
+    setActiveId(id);
+    setDirectoryOpen(false);
+  };
+
+  const handleSend = (event) => {
+    event.preventDefault();
+    const text = draft.trim();
+
+    if (!text || !activeConversation) {
+      return;
+    }
+
+    setMessagesByConversation((items) => ({
+      ...items,
+      [activeConversation.id]: [
+        ...(items[activeConversation.id] ?? []),
+        { id: `${activeConversation.id}_${(items[activeConversation.id] ?? []).length + 1}`, authorId: currentUser.id, body: text },
+      ],
+    }));
+    setConversations((items) =>
+      items.map((conversation) =>
+        conversation.id === activeConversation.id ? { ...conversation, message: text, time: 'сейчас', unread: 0 } : conversation,
+      ),
+    );
+    setDraft('');
+  };
+
+  return (
+    <section className="min-w-0">
+      {expanded ? (
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span className="y2k-label mb-2">compact_disc / chat</span>
+            <h1 className="poster-title font-display text-5xl leading-none text-text">Сообщения</h1>
+          </div>
+          <button
+            className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+            onClick={() => setDirectoryOpen((isOpen) => !isOpen)}
+            type="button"
+          >
+            <MessageSquarePlus size={16} strokeWidth={1.8} />
+            новый чат
+          </button>
+        </div>
+      ) : null}
+
+      <Panel className={['overflow-hidden', expanded ? 'min-h-[620px]' : ''].join(' ')}>
+        <div className="border-b border-border p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-ui text-lg font-bold text-text">Диалоги</h2>
+            {!expanded ? (
+              <IconButton active={directoryOpen} icon={MessageSquarePlus} label="Новый чат" onClick={() => setDirectoryOpen((isOpen) => !isOpen)} />
+            ) : null}
+          </div>
+          <label className="flex items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft">
+            <Search size={15} strokeWidth={1.8} />
+            <input
+              className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Поиск диалога"
+              type="search"
+              value={query}
+            />
+          </label>
+
+          {directoryOpen ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {availablePeople.length > 0 ? (
+                availablePeople.map((person) => (
+                  <button
+                    className="flex items-center gap-3 rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
+                    key={person.id}
+                    onClick={() => createChat(person)}
+                    type="button"
+                  >
+                    <Avatar active={person.status === 'online'} label={person.avatar} size="sm" />
+                    <span className="min-w-0">
+                      <span className="block font-ui text-sm font-bold text-text">{person.name}</span>
+                      <span className="block font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">
+                        @{person.userId}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
+                  Все доступные контакты уже в диалогах.
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className={['grid', expanded ? 'lg:grid-cols-[280px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
+          <div className="grid max-h-[520px] content-start overflow-y-auto border-border lg:border-r">
+            {filteredConversations.map((conversation) => {
+              const participant = getParticipant(conversation, people);
+
+              if (!participant) {
+                return null;
+              }
+
+              return (
+                <button
+                  className={[
+                    'flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 text-left transition last:border-b-0',
+                    activeId === conversation.id ? 'bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]' : 'bg-transparent hover:bg-white/[0.025]',
+                  ].join(' ')}
+                  key={conversation.id}
+                  onClick={() => {
+                    setActiveId(conversation.id);
+                    setConversations((items) =>
+                      items.map((item) => (item.id === conversation.id ? { ...item, unread: 0 } : item)),
+                    );
+                  }}
+                  type="button"
+                >
+                  <Avatar active={participant.status === 'online'} label={participant.avatar} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-ui text-sm font-bold text-text">
+                      {participant.name}
+                    </span>
+                    <span className={['block truncate text-xs', activeId === conversation.id ? 'text-text-soft' : 'text-muted'].join(' ')}>
+                      {conversation.message}
+                    </span>
+                  </span>
+                  {conversation.unread ? (
+                    <span className="grid h-5 min-w-5 place-items-center rounded-full border border-positive/45 bg-positive-soft px-1 font-mono text-[0.6rem] text-positive">
+                      {conversation.unread}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="min-w-0 p-4">
+            {activeParticipant ? (
+              <>
+                <div className="mb-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-ui text-base font-bold text-text">{activeParticipant.name}</p>
+                    <p className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">
+                      @{activeParticipant.userId} / {activeParticipant.status}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={['grid gap-2 overflow-y-auto pr-1', expanded ? 'max-h-[420px]' : 'max-h-72'].join(' ')}>
+                  {activeMessages.length > 0 ? (
+                    activeMessages.map((message) => {
+                      const own = message.authorId === currentUser.id;
+                      return (
+                        <div
+                          className={[
+                            'max-w-[78%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                            own ? 'ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
+                          ].join(' ')}
+                          key={message.id}
+                        >
+                          {message.body}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="rounded-sqd-sm border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
+                      Сообщений пока нет. Начните диалог.
+                    </p>
+                  )}
+                </div>
+
+                <form className="mt-4 flex gap-2" onSubmit={handleSend}>
+                  <input
+                    className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="Сообщение"
+                    value={draft}
+                  />
+                  <IconButton active={Boolean(draft.trim())} icon={SendHorizonal} label="Отправить" type="submit" />
+                </form>
+              </>
+            ) : (
+              <p className="rounded-sqd-sm border border-border bg-surface-2/70 p-4 text-sm text-text-soft">
+                Выберите диалог или создайте новый чат.
+              </p>
+            )}
+          </div>
+        </div>
+      </Panel>
+    </section>
+  );
+}
