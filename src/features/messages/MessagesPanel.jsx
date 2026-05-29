@@ -1,5 +1,5 @@
 import { ArrowLeft, MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   createDirectConversation,
   deleteDirectMessage,
@@ -55,6 +55,7 @@ export default function MessagesPanel({
   const messageInputRef = useRef(null);
   const reloadTimerRef = useRef(null);
   const messagesListRef = useRef(null);
+  const pendingScrollBehaviorRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const preferredConversationIdRef = useRef(preferredConversationId);
 
@@ -82,23 +83,18 @@ export default function MessagesPanel({
   }, [preferredConversationId]);
 
   const scrollMessagesToBottom = useCallback((behavior = 'smooth') => {
-    window.requestAnimationFrame(() => {
-      const element = messagesListRef.current;
+    const element = messagesListRef.current;
 
-      if (!element) {
-        return;
-      }
+    if (!element) {
+      pendingScrollBehaviorRef.current = behavior;
+      return;
+    }
 
-      element.scrollTo({ top: element.scrollHeight, behavior });
+    element.scrollTo({ top: element.scrollHeight, behavior });
+  }, []);
 
-      window.requestAnimationFrame(() => {
-        const latestElement = messagesListRef.current;
-
-        if (latestElement) {
-          latestElement.scrollTo({ top: latestElement.scrollHeight, behavior });
-        }
-      });
-    });
+  const requestScrollMessagesToBottom = useCallback((behavior = 'smooth') => {
+    pendingScrollBehaviorRef.current = behavior;
   }, []);
 
   const loadConversations = useCallback(async ({ keepActive = true } = {}) => {
@@ -160,8 +156,7 @@ export default function MessagesPanel({
       }
 
       if (scroll) {
-        scrollMessagesToBottom('auto');
-        window.setTimeout(() => scrollMessagesToBottom('auto'), 80);
+        requestScrollMessagesToBottom('auto');
       }
 
       return result.messages;
@@ -169,7 +164,7 @@ export default function MessagesPanel({
       setError(loadError.message);
       return [];
     }
-  }, [currentUserId, scrollMessagesToBottom]);
+  }, [currentUserId, requestScrollMessagesToBottom]);
 
   useEffect(() => {
     void Promise.resolve().then(() => loadConversations({ keepActive: true }));
@@ -209,7 +204,7 @@ export default function MessagesPanel({
           await loadMessages(activeConversationId, { markRead: senderId !== currentUserId, scroll: sticky });
 
           if (sticky) {
-            scrollMessagesToBottom('smooth');
+            requestScrollMessagesToBottom('smooth');
           }
         }
       }, 300);
@@ -226,7 +221,7 @@ export default function MessagesPanel({
       window.clearTimeout(reloadTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, loadConversations, loadMessages, scrollMessagesToBottom]);
+  }, [currentUserId, loadConversations, loadMessages, requestScrollMessagesToBottom]);
 
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -245,15 +240,27 @@ export default function MessagesPanel({
 
   const activeConversation = activeId ? conversations.find((conversation) => conversation.id === activeId) : null;
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
-  const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
+  const activeMessages = useMemo(
+    () => (activeConversation ? messagesByConversation[activeConversation.id] ?? [] : []),
+    [activeConversation, messagesByConversation],
+  );
   const hasOlderMessages = activeConversation ? Boolean(hasMoreByConversation[activeConversation.id]) : false;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const behavior = pendingScrollBehaviorRef.current;
+
+    if (behavior) {
+      scrollMessagesToBottom(behavior);
+      pendingScrollBehaviorRef.current = null;
+      shouldAutoScrollRef.current = false;
+      return;
+    }
+
     if (shouldAutoScrollRef.current) {
       scrollMessagesToBottom('auto');
       shouldAutoScrollRef.current = false;
     }
-  }, [activeMessages.length, scrollMessagesToBottom]);
+  }, [activeConversation?.id, activeMessages, scrollMessagesToBottom]);
 
   const resetComposerState = () => {
     setDraft('');
@@ -319,14 +326,13 @@ export default function MessagesPanel({
       setSendError('');
       setMessageActionError('');
       shouldAutoScrollRef.current = true;
+      requestScrollMessagesToBottom('smooth');
       setDraft('');
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: [...previousMessages, temporaryMessage] }));
       const result = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUserId, text });
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
       setHasMoreByConversation((items) => ({ ...items, [activeConversation.id]: result.hasMore }));
-      scrollMessagesToBottom('smooth');
       await loadConversations({ keepActive: true });
-      window.requestAnimationFrame(() => messageInputRef.current?.focus());
     } catch (sendError) {
       setSendError(sendError.message);
       setMessagesByConversation((items) => ({
@@ -343,6 +349,7 @@ export default function MessagesPanel({
       }));
     } finally {
       setSending(false);
+      messageInputRef.current?.focus({ preventScroll: true });
     }
   };
 
@@ -716,12 +723,13 @@ export default function MessagesPanel({
                   <div className="flex gap-2">
                     <textarea
                       className="max-h-36 min-h-10 min-w-0 flex-1 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none placeholder:text-muted focus:border-border-strong disabled:opacity-60"
-                      disabled={sending}
+                      aria-disabled={sending}
                       maxLength={1000}
                       name="message-body"
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
                       placeholder="Сообщение"
+                      readOnly={sending}
                       ref={messageInputRef}
                       rows={1}
                       value={draft}
