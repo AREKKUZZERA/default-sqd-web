@@ -30,6 +30,15 @@ export default function PostComposer({ currentUser, onPost }) {
     }
   };
 
+  const handleComposerKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  };
+
   return (
     <form className="rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
       <div className="flex gap-3">
@@ -40,6 +49,7 @@ export default function PostComposer({ currentUser, onPost }) {
             maxLength={280}
             name="post-body"
             onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
             placeholder="Напишите новый пост"
             value={draft}
           />
