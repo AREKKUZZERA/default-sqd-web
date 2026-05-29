@@ -15,6 +15,8 @@ npm run dev
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
+# Optional. Use / for a custom domain.
+VITE_BASE_PATH=/default-sqd-web/
 ```
 
 ## Release build
@@ -23,19 +25,23 @@ VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 npm run check
 ```
 
-GitHub Pages deploy is configured in `.github/workflows/deploy.yml`.
+GitHub Pages deploy is configured in `.github/workflows/deploy.yml`. Pull requests run the same check/build and upload a preview artifact; deploy runs only on `main` pushes.
 
 ## Supabase release setup
 
 Run SQL files in this order:
 
 1. `supabase/001_schema.sql`
-2. `supabase/004_closed_auth.sql`
-3. `supabase/006_release_features.sql`
-4. `supabase/005_storage_auth.sql` optional
-5. `supabase/007_remove_demo_content.sql`
+2. `supabase/003_storage.sql`
+3. `supabase/004_closed_auth.sql`
+4. `supabase/005_storage_auth.sql`
+5. `supabase/006_release_features.sql`
+6. `supabase/008_editing_and_media_cleanup.sql`
+7. `supabase/007_remove_demo_content.sql`
 
 Do not run demo seeds for release. `supabase/002_seed.sql` is intentionally a no-op.
+
+Profile media is stored in a private `avatars` bucket. The app stores only storage paths in `profiles.avatar_image` / `profiles.banner_image` and uses signed URLs for display.
 
 ## Accounts
 

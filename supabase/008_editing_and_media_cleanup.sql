@@ -38,3 +38,14 @@ with check (
   sender_id = auth.uid()::text
   and public.is_conversation_member(conversation_id, auth.uid()::text)
 );
+
+
+drop policy if exists "direct_messages_delete_own" on public.direct_messages;
+create policy "direct_messages_delete_own"
+on public.direct_messages
+for delete
+to authenticated
+using (
+  sender_id = auth.uid()::text
+  and public.is_conversation_member(conversation_id, auth.uid()::text)
+);

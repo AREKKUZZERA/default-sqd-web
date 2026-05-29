@@ -6,6 +6,7 @@ import SectionTitle from '../../shared/ui/SectionTitle.jsx';
 import PostCard from '../feed/PostCard.jsx';
 
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024;
 
 function getProfileActivity(post, profileUser) {
   if (!profileUser?.id) {
@@ -48,12 +49,19 @@ const IMAGE_PRESETS = {
   },
 };
 
-function readImageFile(file) {
+function canvasToBlob(canvas) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(reader.result));
-    reader.addEventListener('error', reject);
-    reader.readAsDataURL(file);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Canvas export failed.'));
+        }
+      },
+      'image/webp',
+      0.86,
+    );
   });
 }
 
@@ -66,18 +74,45 @@ function loadImage(source) {
   });
 }
 
-async function cropImage({ offsetX, offsetY, source, targetHeight, targetWidth, zoom }) {
+function getCropGeometry({ naturalHeight, naturalWidth, offsetX, offsetY, targetHeight, targetWidth, zoom }) {
+  const baseScale = Math.max(targetWidth / naturalWidth, targetHeight / naturalHeight);
+  const scale = baseScale * zoom;
+  const width = naturalWidth * scale;
+  const height = naturalHeight * scale;
+  const maxOffsetX = Math.max(0, (width - targetWidth) / 2);
+  const maxOffsetY = Math.max(0, (height - targetHeight) / 2);
+
+  return {
+    height,
+    width,
+    x: (targetWidth - width) / 2 + (offsetX / 100) * maxOffsetX,
+    y: (targetHeight - height) / 2 + (offsetY / 100) * maxOffsetY,
+  };
+}
+
+function getCropPreviewStyle(cropDraft) {
+  const { height, width, x, y } = getCropGeometry(cropDraft);
+
+  return {
+    height: `${(height / cropDraft.targetHeight) * 100}%`,
+    left: `${(x / cropDraft.targetWidth) * 100}%`,
+    position: 'absolute',
+    top: `${(y / cropDraft.targetHeight) * 100}%`,
+    width: `${(width / cropDraft.targetWidth) * 100}%`,
+  };
+}
+
+async function cropImage({ source, targetHeight, targetWidth, ...geometry }) {
   const image = await loadImage(source);
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  const baseScale = Math.max(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight);
-  const scale = baseScale * zoom;
-  const width = image.naturalWidth * scale;
-  const height = image.naturalHeight * scale;
-  const maxOffsetX = Math.max(0, (width - targetWidth) / 2);
-  const maxOffsetY = Math.max(0, (height - targetHeight) / 2);
-  const x = (targetWidth - width) / 2 + (offsetX / 100) * maxOffsetX;
-  const y = (targetHeight - height) / 2 + (offsetY / 100) * maxOffsetY;
+  const { height, width, x, y } = getCropGeometry({
+    ...geometry,
+    naturalHeight: image.naturalHeight,
+    naturalWidth: image.naturalWidth,
+    targetHeight,
+    targetWidth,
+  });
 
   canvas.width = targetWidth;
   canvas.height = targetHeight;
@@ -85,7 +120,7 @@ async function cropImage({ offsetX, offsetY, source, targetHeight, targetWidth, 
   context.fillRect(0, 0, targetWidth, targetHeight);
   context.drawImage(image, x, y, width, height);
 
-  return canvas.toDataURL('image/webp', 0.86);
+  return canvasToBlob(canvas);
 }
 
 function getInitials(name) {
@@ -96,6 +131,24 @@ function getInitials(name) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+}
+
+function revokeObjectUrl(value) {
+  if (typeof value === 'string' && value.startsWith('blob:')) {
+    URL.revokeObjectURL(value);
+  }
+}
+
+function getDraftFromProfile(profile) {
+  return {
+    avatarImage: profile?.avatarImage || '',
+    avatarImagePath: profile?.avatarImagePath || profile?.avatarImage || '',
+    bannerImage: profile?.bannerImage || '',
+    bannerImagePath: profile?.bannerImagePath || profile?.bannerImage || '',
+    bio: profile?.bio || '',
+    name: profile?.name || '',
+    userId: profile?.userId || '',
+  };
 }
 
 export default function ProfilePage({
@@ -110,6 +163,7 @@ export default function ProfilePage({
   onMessage,
   onOpenProfile,
   onTogglePost,
+  onUploadProfileImage,
   onUpdateComment,
   onUpdatePost,
   onUpdateProfile,
@@ -117,15 +171,12 @@ export default function ProfilePage({
 }) {
   const [editing, setEditing] = useState(false);
   const isOwnProfile = currentUser.id === profileUser?.id;
-  const [draft, setDraft] = useState({
-    bio: profileUser?.bio || '',
-    name: profileUser?.name || '',
-    role: profileUser?.role || '',
-    userId: profileUser?.userId || '',
-  });
+  const [draft, setDraft] = useState(() => getDraftFromProfile(profileUser));
   const [formError, setFormError] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [cropDraft, setCropDraft] = useState(null);
+  const [mediaDraft, setMediaDraft] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const wallPosts = useMemo(() => {
     if (!profileUser?.id) {
@@ -172,17 +223,37 @@ export default function ProfilePage({
     }
 
     try {
+      setSaving(true);
       setFormError('');
+      let avatarImagePath = draft.avatarImagePath;
+      let bannerImagePath = draft.bannerImagePath;
+
+      if (mediaDraft.avatarImage?.blob) {
+        avatarImagePath = await onUploadProfileImage?.({ blob: mediaDraft.avatarImage.blob, field: 'avatarImage' });
+      }
+
+      if (mediaDraft.bannerImage?.blob) {
+        bannerImagePath = await onUploadProfileImage?.({ blob: mediaDraft.bannerImage.blob, field: 'bannerImage' });
+      }
+
       await onUpdateProfile((profile) => ({
         ...profile,
         ...draft,
         avatar: getInitials(normalizedName),
+        avatarImage: avatarImagePath,
+        avatarImagePath,
+        bannerImage: bannerImagePath,
+        bannerImagePath,
         name: normalizedName,
+        role: profile.role,
         userId: normalizedUserId,
       }));
+      setMediaDraft({});
       setEditing(false);
     } catch (error) {
       setFormError(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -201,18 +272,29 @@ export default function ProfilePage({
       return;
     }
 
+    if (file.size > MAX_IMAGE_FILE_SIZE) {
+      setUploadError('Файл больше 5 МБ. Сожмите изображение перед загрузкой.');
+      return;
+    }
+
+    const source = URL.createObjectURL(file);
+
     try {
-      const image = await readImageFile(file);
+      const image = await loadImage(source);
       setUploadError('');
+      revokeObjectUrl(cropDraft?.source);
       setCropDraft({
         ...preset,
         field,
+        naturalHeight: image.naturalHeight,
+        naturalWidth: image.naturalWidth,
         offsetX: 0,
         offsetY: 0,
-        source: image,
+        source,
         zoom: 1,
       });
     } catch {
+      revokeObjectUrl(source);
       setUploadError('Не удалось прочитать файл.');
     }
   };
@@ -223,9 +305,14 @@ export default function ProfilePage({
     }
 
     try {
-      const image = await cropImage(cropDraft);
+      const blob = await cropImage(cropDraft);
+      const previewUrl = URL.createObjectURL(blob);
+      const previousPreview = draft[cropDraft.field];
       setUploadError('');
-      await onUpdateProfile((profile) => ({ ...profile, [cropDraft.field]: image }));
+      setDraft((value) => ({ ...value, [cropDraft.field]: previewUrl, [`${cropDraft.field}Path`]: value[`${cropDraft.field}Path`] || '' }));
+      setMediaDraft((value) => ({ ...value, [cropDraft.field]: { blob, previewUrl } }));
+      revokeObjectUrl(cropDraft.source);
+      revokeObjectUrl(previousPreview);
       setCropDraft(null);
     } catch (error) {
       setUploadError(error.message || 'Не удалось обработать изображение.');
@@ -255,21 +342,35 @@ export default function ProfilePage({
     );
   }
 
+  const displayedAvatarImage = editing ? draft.avatarImage || profileUser.avatarImage : profileUser.avatarImage;
+  const displayedBannerImage = editing ? draft.bannerImage || profileUser.bannerImage : profileUser.bannerImage;
+
   return (
     <section className="min-w-0">
       <Panel className="mb-4 overflow-hidden">
         <div
           className="profile-hero-band poster-band h-36 border-b border-border bg-cover bg-center"
-          style={profileUser.bannerImage ? { backgroundImage: `url(${profileUser.bannerImage})` } : undefined}
+          style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
         />
         <div className="-mt-10 p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <Avatar active={profileUser.status === 'online'} image={profileUser.avatarImage} label={profileUser.avatar} size="lg" />
+            <Avatar active={profileUser.status === 'online'} image={displayedAvatarImage} label={profileUser.avatar} size="lg" />
             {isOwnProfile ? (
               <button
                 className="sqd-button rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
                 onClick={() => {
-                  setEditing((value) => !value);
+                  setEditing((value) => {
+                    if (value) {
+                      revokeObjectUrl(cropDraft?.source);
+                      Object.values(mediaDraft).forEach((item) => revokeObjectUrl(item?.previewUrl));
+                      setMediaDraft({});
+                      setCropDraft(null);
+                    } else {
+                      setDraft(getDraftFromProfile(profileUser));
+                    }
+
+                    return !value;
+                  });
                   setFormError('');
                   setUploadError('');
                 }}
@@ -305,14 +406,6 @@ export default function ProfilePage({
                   className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-sm text-text outline-none focus:border-border-strong"
                   onChange={(event) => setDraft((value) => ({ ...value, userId: event.target.value }))}
                   value={draft.userId}
-                />
-              </label>
-              <label className="grid gap-1">
-                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Роль</span>
-                <input
-                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
-                  onChange={(event) => setDraft((value) => ({ ...value, role: event.target.value }))}
-                  value={draft.role}
                 />
               </label>
               <label className="grid gap-1">
@@ -364,7 +457,7 @@ export default function ProfilePage({
                     </div>
                     <button
                       className="rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
-                      onClick={() => setCropDraft(null)}
+                      onClick={() => { revokeObjectUrl(cropDraft.source); setCropDraft(null); }}
                       type="button"
                     >
                       отменить
@@ -372,17 +465,13 @@ export default function ProfilePage({
                   </div>
 
                   <div
-                    className="overflow-hidden rounded-sqd-sm border border-border bg-bg-soft"
+                    className="relative overflow-hidden rounded-sqd-sm border border-border bg-bg-soft"
                     style={{ aspectRatio: `${cropDraft.targetWidth} / ${cropDraft.targetHeight}` }}
                   >
                     <img
                       alt=""
-                      className="h-full w-full object-cover"
                       src={cropDraft.source}
-                      style={{
-                        transform: `translate(${cropDraft.offsetX * 0.12}%, ${cropDraft.offsetY * 0.12}%) scale(${cropDraft.zoom})`,
-                        transformOrigin: 'center',
-                      }}
+                      style={getCropPreviewStyle(cropDraft)}
                     />
                   </div>
 
@@ -434,10 +523,11 @@ export default function ProfilePage({
               ) : null}
 
               <button
-                className="justify-self-start rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
+                className="justify-self-start rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={saving}
                 type="submit"
               >
-                сохранить
+                {saving ? 'сохраняем...' : 'сохранить'}
               </button>
             </form>
           ) : null}

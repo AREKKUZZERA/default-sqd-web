@@ -73,8 +73,16 @@ export default function App() {
   const handleSignIn = async ({ email, password }) => {
     setAuthError('');
     setAuthLoading(true);
-    const session = await signInWithPassword({ email, password });
-    await loadProfile(session);
+
+    try {
+      const session = await signInWithPassword({ email, password });
+      await loadProfile(session);
+    } catch (error) {
+      setAuthError(error.message);
+      throw error;
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleSignOut = async () => {

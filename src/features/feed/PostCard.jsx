@@ -1,6 +1,7 @@
 import { Bookmark, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
+import ConfirmDialog from '../../shared/ui/ConfirmDialog.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
@@ -11,6 +12,16 @@ const activityIconByType = {
   like: Heart,
   post: Pencil,
   repost: Repeat2,
+};
+
+const getPostUrl = (postId) => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const normalizedBase = basePath === '/' ? '' : basePath;
+  return `${window.location.origin}${normalizedBase}/post/${encodeURIComponent(postId)}`;
 };
 
 export default function PostCard({
@@ -38,7 +49,9 @@ export default function PostCard({
   const [busyCommentId, setBusyCommentId] = useState(null);
   const [visibleCommentCount, setVisibleCommentCount] = useState(INITIAL_VISIBLE_COMMENTS);
   const [shared, setShared] = useState(false);
-  const [busyDelete, setBusyDelete] = useState(false);
+  const [postBusy, setPostBusy] = useState(false);
+  const [commentSending, setCommentSending] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const commentInputRef = useRef(null);
   const replyCount = post.comments.length;
   const hiddenCommentCount = Math.max(0, replyCount - visibleCommentCount);
@@ -60,58 +73,47 @@ export default function PostCard({
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text) {
+    if (!text || commentSending) {
       return;
     }
 
     try {
+      setCommentSending(true);
       setCommentError('');
       await onComment(post.id, text);
       setDraft('');
       window.requestAnimationFrame(() => commentInputRef.current?.focus());
     } catch (error) {
       setCommentError(error.message);
+    } finally {
+      setCommentSending(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!isOwner || busyDelete) {
+  const requestDeletePost = () => {
+    if (!isOwner || postBusy) {
       return;
     }
 
-    const confirmed = window.confirm('Удалить этот пост? Это действие нельзя отменить.');
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setBusyDelete(true);
-      setPostError('');
-      await onDelete(post.id);
-    } catch (error) {
-      setPostError(error.message);
-    } finally {
-      setBusyDelete(false);
-    }
+    setConfirmAction({ type: 'post' });
   };
 
   const handlePostUpdate = async () => {
     const text = postDraft.trim();
 
-    if (!text || busyDelete) {
+    if (!text || postBusy) {
       return;
     }
 
     try {
-      setBusyDelete(true);
+      setPostBusy(true);
       setPostError('');
       await onUpdatePost(post.id, text);
       setEditingPost(false);
     } catch (error) {
       setPostError(error.message);
     } finally {
-      setBusyDelete(false);
+      setPostBusy(false);
     }
   };
 
@@ -144,40 +146,56 @@ export default function PostCard({
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
+  const requestDeleteComment = (commentId) => {
     if (busyCommentId) {
       return;
     }
 
-    const confirmed = window.confirm('Удалить комментарий?');
+    setConfirmAction({ commentId, type: 'comment' });
+  };
 
-    if (!confirmed) {
+  const confirmDangerAction = async () => {
+    if (!confirmAction) {
       return;
     }
 
     try {
-      setBusyCommentId(commentId);
-      setCommentError('');
-      await onDeleteComment(commentId);
+      if (confirmAction.type === 'post') {
+        setPostBusy(true);
+        setPostError('');
+        await onDelete(post.id);
+        return;
+      }
 
-      if (editingCommentId === commentId) {
+      setBusyCommentId(confirmAction.commentId);
+      setCommentError('');
+      await onDeleteComment(confirmAction.commentId);
+
+      if (editingCommentId === confirmAction.commentId) {
         cancelEditComment();
       }
     } catch (error) {
-      setCommentError(error.message);
+      if (confirmAction.type === 'post') {
+        setPostError(error.message);
+      } else {
+        setCommentError(error.message);
+      }
     } finally {
+      setPostBusy(false);
       setBusyCommentId(null);
+      setConfirmAction(null);
     }
   };
 
   const handleShare = async () => {
     const shareText = `${post.author}: ${post.text}`;
+    const url = getPostUrl(post.id);
 
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'default squad', text: shareText });
+        await navigator.share({ title: 'default squad', text: shareText, url });
       } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareText);
+        await navigator.clipboard.writeText(url || shareText);
       }
 
       setShared(true);
@@ -230,19 +248,19 @@ export default function PostCard({
             >
               {post.author}
             </button>
-            <span className="post-meta font-mono text-[0.66rem] uppercase tracking-[0.08em] text-muted">
+            <span className="post-meta font-mono text-[0.7rem] tracking-[0.03em] text-muted">
               @{post.userId} / {post.time}
             </span>
             {tags.map((tag) => (
-              <span className="post-tag rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.56rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
+              <span className="post-tag rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.58rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
                 #{tag}
               </span>
             ))}
             {isOwner ? (
               <span className="ml-auto inline-flex flex-wrap justify-end gap-1">
                 <button
-                  className="inline-flex h-8 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50"
-                  disabled={busyDelete}
+                  className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:min-h-8"
+                  disabled={postBusy}
                   onClick={() => {
                     setEditingPost(true);
                     setPostDraft(post.text);
@@ -253,15 +271,15 @@ export default function PostCard({
                   изменить
                 </button>
                 <button
-                  className="inline-flex h-8 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50"
-                  disabled={busyDelete}
-                  onClick={handleDelete}
+                  className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:min-h-8"
+                  disabled={postBusy}
+                  onClick={requestDeletePost}
                   type="button"
                 >
                   <Trash2 size={13} strokeWidth={1.8} />
                   удалить
                 </button>
-                </span>
+              </span>
             ) : null}
           </div>
 
@@ -275,15 +293,15 @@ export default function PostCard({
               />
               <div className="flex flex-wrap gap-2">
                 <button
-                  className="rounded-sqd-xs border border-border-strong bg-accent-soft px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
-                  disabled={!postDraft.trim() || busyDelete}
+                  className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
+                  disabled={!postDraft.trim() || postBusy}
                   onClick={handlePostUpdate}
                   type="button"
                 >
-                  сохранить
+                  {postBusy ? 'сохраняем...' : 'сохранить'}
                 </button>
                 <button
-                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
+                  className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
                   onClick={() => setEditingPost(false)}
                   type="button"
                 >
@@ -322,144 +340,157 @@ export default function PostCard({
             <IconButton active={shared} icon={Share2} label="Поделиться" onClick={handleShare} />
           </div>
 
-          {shared ? (
-            <p className="mt-2 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-positive">
-              ссылка скопирована
-            </p>
-          ) : null}
+          {shared ? <p className="mt-2 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-positive">ссылка скопирована</p> : null}
         </div>
       </div>
 
-      <div
-        aria-hidden={!commentOpen}
-        className={['post-comments', commentOpen ? 'post-comments--open' : ''].join(' ')}
-        id={commentsId}
-      >
-        <div className="post-comments__inner mt-3 border-t border-border pt-3">
-          {post.comments.length > 0 ? (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">Комментарии</p>
-                <span className="font-mono text-[0.6rem] text-muted">{replyCount}</span>
-              </div>
+      {commentOpen ? (
+        <div className="post-comments post-comments--open" id={commentsId}>
+          <div className="post-comments__inner mt-3 border-t border-border pt-3">
+            {post.comments.length > 0 ? (
+              <>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="font-mono text-[0.64rem] uppercase tracking-[0.08em] text-muted">Комментарии</p>
+                  <span className="font-mono text-[0.64rem] text-muted">{replyCount}</span>
+                </div>
 
-              {hiddenCommentCount > 0 ? (
-                <button
-                  className="mb-2 rounded-sqd-xs border border-border bg-surface-2/65 px-3 py-2 text-sm text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
-                  onClick={() => setVisibleCommentCount((count) => count + INITIAL_VISIBLE_COMMENTS)}
-                  type="button"
-                >
-                  Показать ещё {Math.min(hiddenCommentCount, INITIAL_VISIBLE_COMMENTS)}
-                </button>
-              ) : null}
+                {hiddenCommentCount > 0 ? (
+                  <button
+                    className="mb-2 rounded-sqd-xs border border-border bg-surface-2/65 px-3 py-2 text-sm text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+                    onClick={() => setVisibleCommentCount((count) => count + INITIAL_VISIBLE_COMMENTS)}
+                    type="button"
+                  >
+                    Показать ещё {Math.min(hiddenCommentCount, INITIAL_VISIBLE_COMMENTS)}
+                  </button>
+                ) : null}
 
-              <div className="grid gap-1.5">
-                {visibleComments.map((comment) => {
-                  const ownComment = currentUser?.id === comment.authorId;
-                  const editing = editingCommentId === comment.id;
-                  const busy = busyCommentId === comment.id;
+                <div className="grid gap-1.5">
+                  {visibleComments.map((comment) => {
+                    const ownComment = currentUser?.id === comment.authorId;
+                    const editing = editingCommentId === comment.id;
+                    const busy = busyCommentId === comment.id;
 
-                  return (
-                  <div className={["comment-card flex gap-2 rounded-sqd-sm border p-2.5", ownComment ? "comment-card--own border-positive/25 bg-positive-soft/20" : "border-border bg-bg-soft/80"].join(' ')} key={comment.id}>
-                    <button
-                      aria-label={`Открыть профиль ${comment.author}`}
-                      className="self-start rounded-sqd-sm text-left transition hover:opacity-85"
-                      onClick={() => onOpenProfile?.(comment.authorId)}
-                      type="button"
-                    >
-                      <Avatar image={comment.avatarImage} label={comment.avatar} size="sm" />
-                      </button>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    return (
+                      <div
+                        className={[
+                          'comment-card flex gap-2 rounded-sqd-sm border p-2.5',
+                          ownComment ? 'comment-card--own border-positive/25 bg-positive-soft/20' : 'border-border bg-bg-soft/80',
+                        ].join(' ')}
+                        key={comment.id}
+                      >
                         <button
-                          className="font-ui text-[0.82rem] font-bold leading-4 text-text transition hover:text-text-soft"
+                          aria-label={`Открыть профиль ${comment.author}`}
+                          className="self-start rounded-sqd-sm text-left transition hover:opacity-85"
                           onClick={() => onOpenProfile?.(comment.authorId)}
                           type="button"
                         >
-                          {comment.author}
+                          <Avatar image={comment.avatarImage} label={comment.avatar} size="sm" />
                         </button>
-                        <span className="font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">
-                          {comment.pending ? 'отправляется' : comment.time}
-                          {comment.edited && !comment.pending ? ' / изменено' : ''}
-                        </span>
-                        {ownComment ? (
-                          <span className="ml-auto inline-flex gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <button
-                              aria-label="Редактировать комментарий"
-                              className="grid size-7 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50"
-                              disabled={busy || comment.pending}
-                              onClick={() => startEditComment(comment)}
+                              className="font-ui text-[0.82rem] font-bold leading-4 text-text transition hover:text-text-soft"
+                              onClick={() => onOpenProfile?.(comment.authorId)}
                               type="button"
                             >
-                              <Pencil size={13} strokeWidth={1.8} />
+                              {comment.author}
                             </button>
-                            <button
-                              aria-label="Удалить комментарий"
-                              className="grid size-7 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50"
-                              disabled={busy || comment.pending}
-                              onClick={() => handleDeleteComment(comment.id)}
-                              type="button"
-                            >
-                              <Trash2 size={13} strokeWidth={1.8} />
-                            </button>
-                          </span>
-                        ) : null}
-                      </div>
-                      {editing ? (
-                        <div className="mt-2 grid gap-2">
-                          <textarea
-                            className="min-h-20 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
-                            maxLength={280}
-                            onChange={(event) => setEditingDraft(event.target.value)}
-                            value={editingDraft}
-                          />
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="rounded-sqd-xs border border-border-strong bg-accent-soft px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
-                              disabled={!editingDraft.trim() || busy}
-                              onClick={() => handleUpdateComment(comment.id)}
-                              type="button"
-                            >
-                              сохранить
-                            </button>
-                            <button
-                              className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
-                              onClick={cancelEditComment}
-                              type="button"
-                            >
-                              отменить
-                            </button>
+                            <span className="font-mono text-[0.62rem] tracking-[0.03em] text-muted">
+                              {comment.pending ? 'отправляется' : comment.time}
+                              {comment.edited && !comment.pending ? ' / изменено' : ''}
+                            </span>
+                            {ownComment ? (
+                              <span className="ml-auto inline-flex gap-1">
+                                <button
+                                  aria-label="Редактировать комментарий"
+                                  className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
+                                  disabled={busy || comment.pending}
+                                  onClick={() => startEditComment(comment)}
+                                  type="button"
+                                >
+                                  <Pencil size={14} strokeWidth={1.8} />
+                                </button>
+                                <button
+                                  aria-label="Удалить комментарий"
+                                  className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                  disabled={busy || comment.pending}
+                                  onClick={() => requestDeleteComment(comment.id)}
+                                  type="button"
+                                >
+                                  <Trash2 size={14} strokeWidth={1.8} />
+                                </button>
+                              </span>
+                            ) : null}
                           </div>
+                          {editing ? (
+                            <div className="mt-2 grid gap-2">
+                              <textarea
+                                className="min-h-20 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
+                                maxLength={280}
+                                onChange={(event) => setEditingDraft(event.target.value)}
+                                value={editingDraft}
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
+                                  disabled={!editingDraft.trim() || busy}
+                                  onClick={() => handleUpdateComment(comment.id)}
+                                  type="button"
+                                >
+                                  {busy ? 'сохраняем...' : 'сохранить'}
+                                </button>
+                                <button
+                                  className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
+                                  onClick={cancelEditComment}
+                                  type="button"
+                                >
+                                  отменить
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-1 whitespace-pre-wrap text-[0.82rem] leading-5 text-text-soft">{comment.text}</p>
+                          )}
                         </div>
-                      ) : (
-                        <p className="mt-1 whitespace-pre-wrap text-[0.82rem] leading-5 text-text-soft">{comment.text}</p>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
 
-          {commentOpen ? (
-            <>
-              <form className={['flex gap-2', post.comments.length > 0 ? 'mt-2' : ''].join(' ')} onSubmit={handleCommentSubmit}>
-                <input
-                  className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
-                  onChange={(event) => setDraft(event.target.value)}
-                  maxLength={280}
-                  placeholder="Написать комментарий"
-                  ref={commentInputRef}
-                  value={draft}
-                />
-                <IconButton active={Boolean(draft.trim())} icon={Send} label="Отправить комментарий" type="submit" />
-              </form>
-              {commentError ? <p className="mt-2 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{commentError}</p> : null}
-            </>
-          ) : null}
+            <form className={['flex gap-2', post.comments.length > 0 ? 'mt-2' : ''].join(' ')} onSubmit={handleCommentSubmit}>
+              <input
+                className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
+                disabled={commentSending}
+                maxLength={280}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Написать комментарий"
+                ref={commentInputRef}
+                value={draft}
+              />
+              <IconButton
+                active={Boolean(draft.trim())}
+                disabled={!draft.trim() || commentSending}
+                icon={Send}
+                label="Отправить комментарий"
+                type="submit"
+              />
+            </form>
+            {commentError ? <p className="mt-2 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{commentError}</p> : null}
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      <ConfirmDialog
+        busy={postBusy || Boolean(busyCommentId)}
+        confirmLabel="Удалить"
+        description={confirmAction?.type === 'post' ? 'Пост и все комментарии исчезнут из ленты.' : 'Комментарий будет удалён без восстановления.'}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={confirmDangerAction}
+        open={Boolean(confirmAction)}
+        title={confirmAction?.type === 'post' ? 'Удалить пост?' : 'Удалить комментарий?'}
+      />
     </Panel>
   );
 }

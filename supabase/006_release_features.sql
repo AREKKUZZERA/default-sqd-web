@@ -87,11 +87,7 @@ for select
 to authenticated
 using (public.is_conversation_member(id, auth.uid()::text));
 
-create policy "direct_conversations_insert_authenticated"
-on public.direct_conversations
-for insert
-to authenticated
-with check (true);
+-- Clients cannot insert conversations directly. Use public.create_direct_conversation(target_user_id).
 
 create policy "direct_conversation_members_select_member"
 on public.direct_conversation_members
@@ -99,14 +95,7 @@ for select
 to authenticated
 using (public.is_conversation_member(conversation_id, auth.uid()::text));
 
-create policy "direct_conversation_members_insert_member_or_new"
-on public.direct_conversation_members
-for insert
-to authenticated
-with check (
-  user_id = auth.uid()::text
-  or public.is_conversation_member(conversation_id, auth.uid()::text)
-);
+-- Clients cannot insert members directly. The RPC below creates exactly 1:1 memberships.
 
 create policy "direct_conversation_members_update_own"
 on public.direct_conversation_members
@@ -147,7 +136,10 @@ create policy "direct_messages_delete_own"
 on public.direct_messages
 for delete
 to authenticated
-using (sender_id = auth.uid()::text);
+using (
+  sender_id = auth.uid()::text
+  and public.is_conversation_member(conversation_id, auth.uid()::text)
+);
 
 drop trigger if exists direct_messages_set_updated_at on public.direct_messages;
 create trigger direct_messages_set_updated_at
@@ -184,13 +176,23 @@ using (recipient_id = auth.uid()::text);
 
 -- Make table privileges explicit. RLS still controls row access.
 grant usage on schema public to authenticated;
-grant select, insert, update, delete on public.profiles to authenticated;
+
+revoke insert, update, delete on public.profiles from authenticated;
+grant select on public.profiles to authenticated;
+grant insert (id, user_id, name, avatar, avatar_image, banner_image, status, bio) on public.profiles to authenticated;
+grant update (user_id, name, avatar, avatar_image, banner_image, status, bio) on public.profiles to authenticated;
+
 grant select, insert, update, delete on public.posts to authenticated;
 grant select, insert, update, delete on public.comments to authenticated;
 grant select, insert, update, delete on public.post_reactions to authenticated;
-grant select, insert, update, delete on public.direct_conversations to authenticated;
-grant select, insert, update, delete on public.direct_conversation_members to authenticated;
+
+revoke insert, update, delete on public.direct_conversations from authenticated;
+revoke insert, update, delete on public.direct_conversation_members from authenticated;
+grant select on public.direct_conversations to authenticated;
+grant select on public.direct_conversation_members to authenticated;
+grant update (read_at) on public.direct_conversation_members to authenticated;
 grant select, insert, update, delete on public.direct_messages to authenticated;
+
 grant select, update, delete on public.notifications to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 
@@ -240,6 +242,8 @@ begin
     created_at = now();
 end;
 $$;
+
+revoke all on function public.safe_create_notification(text, text, text, bigint, bigint, bigint, text, text) from public, anon, authenticated;
 
 create or replace function public.notify_post_comment()
 returns trigger
@@ -339,6 +343,36 @@ begin
 end;
 $$;
 
+revoke all on function public.notify_post_comment() from public, anon, authenticated;
+revoke all on function public.notify_post_reaction() from public, anon, authenticated;
+revoke all on function public.notify_direct_message() from public, anon, authenticated;
+
+create or replace function public.enforce_direct_conversation_pair()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (
+    select count(*)
+    from public.direct_conversation_members
+    where conversation_id = new.conversation_id
+  ) > 2 then
+    raise exception 'Direct conversations must have exactly two members';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.enforce_direct_conversation_pair() from public, anon, authenticated;
+
+drop trigger if exists direct_conversation_members_enforce_pair on public.direct_conversation_members;
+create trigger direct_conversation_members_enforce_pair
+after insert on public.direct_conversation_members
+for each row execute function public.enforce_direct_conversation_pair();
+
 drop trigger if exists comments_notify_insert on public.comments;
 create trigger comments_notify_insert
 after insert on public.comments
@@ -428,4 +462,5 @@ begin
 end;
 $$;
 
+revoke all on function public.create_direct_conversation(text) from public, anon;
 grant execute on function public.create_direct_conversation(text) to authenticated;

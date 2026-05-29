@@ -122,7 +122,6 @@ export async function ensureProfileForSession(session) {
     id: user.id,
     user_id: userId,
     name,
-    role: user.user_metadata?.role || 'Member',
     avatar: getInitials(name),
     avatar_image: '',
     banner_image: '',

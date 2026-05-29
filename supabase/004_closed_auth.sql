@@ -199,6 +199,8 @@ begin
 end;
 $$;
 
+revoke all on function public.handle_new_auth_user() from public, anon, authenticated;
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
@@ -209,3 +211,10 @@ revoke insert, update, delete on public.profiles from anon;
 revoke insert, update, delete on public.posts from anon;
 revoke insert, update, delete on public.comments from anon;
 revoke insert, update, delete on public.post_reactions from anon;
+
+-- Restrict profile self-service columns. The public role cannot be changed by clients.
+revoke insert, update, delete on public.profiles from authenticated;
+grant select on public.profiles to authenticated;
+grant insert (id, user_id, name, avatar, avatar_image, banner_image, status, bio) on public.profiles to authenticated;
+grant update (user_id, name, avatar, avatar_image, banner_image, status, bio) on public.profiles to authenticated;
+

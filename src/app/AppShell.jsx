@@ -1,8 +1,7 @@
 import { Bell, Home, LogOut, MessageCircle, Search, Settings, UserCircle } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
-import MessagesPanel from '../features/messages/MessagesPanel.jsx';
-import ProfilePage from '../features/profile/ProfilePage.jsx';
+
 import ProfilePanel from '../features/profile/ProfilePanel.jsx';
 import {
   createComment as createRemoteComment,
@@ -11,7 +10,8 @@ import {
   deleteComment as deleteRemoteComment,
   deletePost as deleteRemotePost,
   fetchNotifications,
-  fetchPosts,
+  fetchPostById,
+  fetchPostsPage,
   fetchProfiles,
   getReactionTypeByKey,
   markNotificationsRead,
@@ -19,6 +19,7 @@ import {
   updateComment as updateRemoteComment,
   updatePost as updateRemotePost,
   updateProfile as updateRemoteProfile,
+  uploadProfileImage as uploadRemoteProfileImage,
 } from '../shared/api/socialApi.js';
 import { supabase } from '../shared/lib/supabase.js';
 import { buildHashtagTrends, extractHashtags } from '../shared/utils/hashtags.js';
@@ -31,6 +32,10 @@ const mobileNavigation = [
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
+
+
+const MessagesPanel = lazy(() => import('../features/messages/MessagesPanel.jsx'));
+const ProfilePage = lazy(() => import('../features/profile/ProfilePage.jsx'));
 
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -72,6 +77,14 @@ const getMessageConversationIdFromPath = () => {
   return match ? decodeURIComponent(match[1] || '') : null;
 };
 
+const getPostIdFromPath = () => {
+  const appPath = stripBasePath();
+  const match = appPath.match(/^\/post\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+const isSamePostId = (left, right) => String(left || '') === String(right || '');
+
 const getInitialView = () => {
   if (getProfileKeyFromPath()) return 'profile';
   if (getMessageConversationIdFromPath() !== null) return 'messages';
@@ -103,8 +116,12 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [currentUser, setCurrentUser] = useState(authenticatedUser);
   const [selectedProfileKey, setSelectedProfileKey] = useState(() => getProfileKeyFromPath() || authenticatedUser.userId || authenticatedUser.id);
   const [preferredConversationId, setPreferredConversationId] = useState(() => getMessageConversationIdFromPath() || null);
+  const [selectedPostId, setSelectedPostId] = useState(() => getPostIdFromPath());
   const [people, setPeople] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [postsCursor, setPostsCursor] = useState(null);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [query, setQuery] = useState('');
   const [activeTopic, setActiveTopic] = useState('all');
@@ -130,21 +147,32 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       setBackendError('');
-      const [remoteProfiles, remotePosts, remoteNotifications] = await Promise.all([
+      const [remoteProfiles, postsPage, remoteNotifications] = await Promise.all([
         fetchProfiles(),
-        fetchPosts(currentUser.id),
+        fetchPostsPage(currentUser.id),
         fetchNotifications(currentUser.id),
       ]);
+      let nextPosts = postsPage.posts;
+
+      if (selectedPostId && !nextPosts.some((post) => isSamePostId(post.id, selectedPostId))) {
+        const selectedPost = await fetchPostById(currentUser.id, selectedPostId);
+
+        if (selectedPost) {
+          nextPosts = [selectedPost, ...nextPosts];
+        }
+      }
 
       setPeople(remoteProfiles);
-      setPosts(remotePosts);
+      setPosts(nextPosts);
+      setPostsCursor(postsPage.nextCursor);
+      setPostsHasMore(postsPage.hasMore);
       setNotifications(remoteNotifications);
     } catch (error) {
       setBackendError(error.message);
     } finally {
       setBackendReady(true);
     }
-  }, [currentUser]);
+  }, [currentUser, selectedPostId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadRemoteData);
@@ -246,6 +274,10 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   );
 
   const visiblePosts = useMemo(() => {
+    if (selectedPostId) {
+      return posts.filter((post) => isSamePostId(post.id, selectedPostId));
+    }
+
     const queryTerms = query
       .trim()
       .toLowerCase()
@@ -261,16 +293,44 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
       return matchesTopic && matchesAuthor && matchesQuery;
     });
-  }, [activeAuthor, activeTopic, posts, query]);
+  }, [activeAuthor, activeTopic, posts, query, selectedPostId]);
 
   const hashtagTrends = useMemo(() => buildHashtagTrends(posts), [posts]);
+
+  const replacePostsFromMutation = (remotePosts) => {
+    setPosts(remotePosts);
+    setPostsCursor(remotePosts.at(-1)?.createdAt || null);
+    setPostsHasMore(remotePosts.length >= 20);
+  };
+
+  const loadMorePosts = async () => {
+    if (!postsHasMore || !postsCursor || loadingMorePosts || !currentUser?.id) {
+      return;
+    }
+
+    try {
+      setLoadingMorePosts(true);
+      setBackendError('');
+      const nextPage = await fetchPostsPage(currentUser.id, { cursor: postsCursor });
+      setPosts((items) => {
+        const seen = new Set(items.map((post) => String(post.id)));
+        return [...items, ...nextPage.posts.filter((post) => !seen.has(String(post.id)))];
+      });
+      setPostsCursor(nextPage.nextCursor);
+      setPostsHasMore(nextPage.hasMore);
+    } catch (error) {
+      setBackendError(error.message);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  };
 
   const addPost = async ({ hashtags, text }) => {
     const previousPosts = posts;
 
     try {
       const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, text });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -305,7 +365,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -318,7 +378,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       const remotePosts = await deleteRemotePost({ currentUserId: currentUser.id, postId });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -337,7 +397,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       const remotePosts = await deleteRemoteComment({ commentId, currentUserId: currentUser.id });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -355,7 +415,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       const remotePosts = await updateRemoteComment({ commentId, currentUserId: currentUser.id, text });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -372,7 +432,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
     try {
       const remotePosts = await updateRemotePost({ currentUserId: currentUser.id, hashtags, postId, text });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -380,11 +440,24 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   };
 
   const updateProfile = async (updater) => {
+    const previousUserId = displayedUser.userId;
     const nextProfile = typeof updater === 'function' ? updater(displayedUser) : updater;
     const remoteProfile = await updateRemoteProfile(nextProfile);
     setCurrentUser(remoteProfile);
+
+    if (remoteProfile.id === currentUser.id && remoteProfile.userId !== previousUserId) {
+      setSelectedProfileKey(remoteProfile.userId);
+
+      if (activeView === 'profile') {
+        updateBrowserPath(`/profile/${encodeURIComponent(remoteProfile.userId)}`);
+      }
+    }
+
     await loadRemoteData();
   };
+
+  const uploadProfileMedia = async ({ blob, field }) =>
+    uploadRemoteProfileImage({ blob, currentUserId: currentUser.id, field });
 
   const togglePost = async (postId, key) => {
     const type = getReactionTypeByKey(key);
@@ -429,7 +502,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         postId,
         type,
       });
-      setPosts(remotePosts);
+      replacePostsFromMutation(remotePosts);
     } catch (error) {
       setPosts(previousPosts);
       setBackendError(error.message);
@@ -450,11 +523,27 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const showMessages = useCallback((conversationId = null) => {
     setActiveView('messages');
     setPreferredConversationId(conversationId);
+    setSelectedPostId(null);
     updateBrowserPath(conversationId ? `/messages/${encodeURIComponent(conversationId)}` : '/messages');
   }, []);
 
+  const showPost = (postId) => {
+    if (!postId) {
+      return;
+    }
+
+    setPreferredConversationId(null);
+    setSelectedPostId(postId);
+    setActiveTopic('all');
+    setActiveAuthor('all');
+    setQuery('');
+    setActiveView('feed');
+    updateBrowserPath(`/post/${encodeURIComponent(postId)}`);
+  };
+
   const showProfile = (profileId = currentUser.id) => {
     setPreferredConversationId(null);
+    setSelectedPostId(null);
     const profile = people.find((person) => person.id === profileId || person.userId === profileId);
     const isOwnProfile = profileId === currentUser.id || profileId === currentUser.userId;
     const profileKey = profile?.userId || (isOwnProfile ? displayedUser.userId : profileId);
@@ -465,6 +554,10 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const showOwnProfile = () => showProfile(currentUser.id);
   const showFeed = () => {
     setPreferredConversationId(null);
+    setSelectedPostId(null);
+    setActiveTopic('all');
+    setActiveAuthor('all');
+    setQuery('');
     setActiveView('feed');
     updateBrowserPath('/');
   };
@@ -479,11 +572,11 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return;
     }
 
-    setActiveView(target);
-    updateBrowserPath('/');
+    showFeed();
   };
 
   const handleConversationChange = useCallback((conversationId) => {
+    setSelectedPostId(null);
     setPreferredConversationId(conversationId || null);
     updateBrowserPath(conversationId ? `/messages/${encodeURIComponent(conversationId)}` : '/messages');
   }, []);
@@ -504,6 +597,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const selectTopic = (topic) => {
     setPreferredConversationId(null);
+    setSelectedPostId(null);
     setActiveTopic(topic);
     setActiveAuthor('all');
     setActiveView('feed');
@@ -512,30 +606,53 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const selectAuthor = (authorId) => {
     setPreferredConversationId(null);
+    setSelectedPostId(null);
     setActiveAuthor(authorId);
     setActiveTopic('all');
     setActiveView('feed');
     updateBrowserPath('/');
   };
 
+  const openNotification = (item) => {
+    setNotificationsOpen(false);
+
+    if (item.conversationId) {
+      showMessages(item.conversationId);
+      return;
+    }
+
+    if (item.postId) {
+      showPost(item.postId);
+      return;
+    }
+
+    if (item.actorId) {
+      showProfile(item.actorId);
+    }
+  };
+
   useEffect(() => {
     const syncRoute = () => {
       const profileKey = getProfileKeyFromPath();
       const conversationId = getMessageConversationIdFromPath();
+      const postId = getPostIdFromPath();
 
       if (profileKey) {
+        setSelectedPostId(null);
         setSelectedProfileKey(profileKey);
         setActiveView('profile');
         return;
       }
 
       if (conversationId !== null) {
+        setSelectedPostId(null);
         setPreferredConversationId(conversationId || null);
         setActiveView('messages');
         return;
       }
 
       setPreferredConversationId(null);
+      setSelectedPostId(postId);
       setActiveView('feed');
     };
 
@@ -566,16 +683,20 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           </span>
         </button>
 
-        <label className="ml-auto hidden min-w-56 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft transition focus-within:border-border-strong lg:flex">
-          <Search size={16} strokeWidth={1.8} />
-          <input
-            className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Поиск"
-            type="search"
-            value={query}
-          />
-        </label>
+        {activeView === 'feed' && !selectedPostId ? (
+          <label className="ml-auto hidden min-w-56 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft transition focus-within:border-border-strong lg:flex">
+            <Search size={16} strokeWidth={1.8} />
+            <input
+              className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Поиск по ленте"
+              type="search"
+              value={query}
+            />
+          </label>
+        ) : (
+          <span className="ml-auto" aria-hidden="true" />
+        )}
 
         <div className="relative" ref={notificationsRef}>
           <IconButton
@@ -623,10 +744,10 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
                       >
                         <Avatar image={item.actorAvatarImage} label={item.actorAvatar} size="sm" />
                       </button>
-                      <div className="min-w-0">
+                      <button className="min-w-0 flex-1 text-left" onClick={() => openNotification(item)} type="button">
                         <p className="leading-5">{item.text}</p>
                         <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted">{item.time}</p>
-                      </div>
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -672,16 +793,18 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </button>
       </header>
 
-      <label className="poster-mobile-search mx-auto mb-5 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition focus-within:border-border-strong lg:hidden">
-        <Search size={16} strokeWidth={1.8} />
-        <input
-          className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск по ленте"
-          type="search"
-          value={query}
-        />
-      </label>
+      {activeView === 'feed' && !selectedPostId ? (
+        <label className="poster-mobile-search mx-auto mb-5 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition focus-within:border-border-strong lg:hidden">
+          <Search size={16} strokeWidth={1.8} />
+          <input
+            className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Поиск по ленте"
+            type="search"
+            value={query}
+          />
+        </label>
+      ) : null}
 
       {displayedBackendError ? (
         <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-warning/45 bg-warning/10 px-3 py-2 font-ui text-sm text-warning">
@@ -690,8 +813,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       ) : null}
 
       {!backendReady ? (
-        <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-border bg-surface/80 px-3 py-2 font-ui text-sm text-text-soft">
-          Загружаем данные...
+        <div className="mx-auto mb-4 grid max-w-[var(--shell-width)] gap-3" aria-label="Загружаем данные">
+          <div className="skeleton-line h-14 rounded-sqd-sm" />
+          <div className="skeleton-line h-28 rounded-sqd-sm" />
         </div>
       ) : null}
 
@@ -707,54 +831,64 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           />
         </aside>
 
-        {activeView === 'messages' ? (
-          <MessagesPanel
-            currentUser={displayedUser}
-            expanded
-            onConversationPathChange={handleConversationChange}
-            onOpenProfile={showProfile}
-            onPreferredConversationHandled={clearPreferredConversation}
-            people={people}
-            preferredConversationId={activeConversationPathId}
-          />
-        ) : activeView === 'profile' ? (
-          <ProfilePage
-            currentUser={displayedUser}
-            key={selectedProfile?.id || selectedProfileKey}
-            missing={profileMissing}
-            onCommentPost={addComment}
-            onDeleteComment={deleteComment}
-            onDeletePost={deletePost}
-            onMessage={startConversation}
-            onOpenProfile={showProfile}
-            onTogglePost={togglePost}
-            onUpdateComment={updateComment}
-            onUpdatePost={updatePost}
-            onUpdateProfile={updateProfile}
-            people={people}
-            posts={posts}
-            profileUser={selectedProfile}
-            requestedProfileKey={selectedProfileKey}
-          />
-        ) : (
-          <Feed
-            activeAuthor={activeAuthor}
-            authors={authorFilters}
-            compactMode={compactMode}
-            currentUser={displayedUser}
-            onAddPost={addPost}
-            onCommentPost={addComment}
-            onDeleteComment={deleteComment}
-            onDeletePost={deletePost}
-            onOpenProfile={showProfile}
-            onSelectAuthor={selectAuthor}
-            onTogglePost={togglePost}
-            onUpdateComment={updateComment}
-            onUpdatePost={updatePost}
-            posts={visiblePosts}
-            query={query}
-          />
-        )}
+        <Suspense fallback={<Panel className="p-6"><div className="skeleton-line h-24 rounded-sqd-sm" /></Panel>}>
+          {activeView === 'messages' ? (
+            <MessagesPanel
+              currentUser={displayedUser}
+              expanded
+              onConversationPathChange={handleConversationChange}
+              onOpenProfile={showProfile}
+              onPreferredConversationHandled={clearPreferredConversation}
+              people={people}
+              preferredConversationId={activeConversationPathId}
+            />
+          ) : activeView === 'profile' ? (
+            <ProfilePage
+              currentUser={displayedUser}
+              key={selectedProfile?.id || selectedProfileKey}
+              missing={profileMissing}
+              onCommentPost={addComment}
+              onDeleteComment={deleteComment}
+              onDeletePost={deletePost}
+              onMessage={startConversation}
+              onOpenProfile={showProfile}
+              onTogglePost={togglePost}
+              onUpdateComment={updateComment}
+              onUpdatePost={updatePost}
+              onUpdateProfile={updateProfile}
+              onUploadProfileImage={uploadProfileMedia}
+              people={people}
+              posts={posts}
+              profileUser={selectedProfile}
+              requestedProfileKey={selectedProfileKey}
+            />
+          ) : (
+            <Feed
+              activeAuthor={activeAuthor}
+              activeTopic={activeTopic}
+              authors={authorFilters}
+              compactMode={compactMode}
+              currentUser={displayedUser}
+              hasMore={postsHasMore && !selectedPostId}
+              loadingMore={loadingMorePosts}
+              onAddPost={addPost}
+              onClearPost={showFeed}
+              onClearTopic={() => setActiveTopic('all')}
+              onCommentPost={addComment}
+              onDeleteComment={deleteComment}
+              onDeletePost={deletePost}
+              onLoadMore={loadMorePosts}
+              onOpenProfile={showProfile}
+              onSelectAuthor={selectAuthor}
+              onTogglePost={togglePost}
+              onUpdateComment={updateComment}
+              onUpdatePost={updatePost}
+              posts={visiblePosts}
+              query={query}
+              selectedPostId={selectedPostId}
+            />
+          )}
+        </Suspense>
       </main>
 
       <nav className={[

@@ -8,7 +8,7 @@
   --color-border-strong: rgba(232, 224, 218, 0.28);
   --color-text: #eee8e1;
   --color-text-soft: #bdb5ae;
-  --color-muted: #817a76;
+  --color-muted: #9f9690;
   --color-accent: #c06a82;
   --color-accent-soft: rgba(192, 106, 130, 0.12);
   --color-accent-glow: rgba(192, 106, 130, 0.14);
@@ -33,35 +33,6 @@
   --y2k-ink: #030303;
   --y2k-grid: rgba(231, 221, 214, 0.045);
   --y2k-scan: rgba(231, 221, 214, 0.02);
-}
-
-/* Preset kept for later: high-saturation poster/Y2K palette. */
-[data-theme-preset='acid-y2k'] {
-  --color-bg: #07080b;
-  --color-bg-soft: #060606;
-  --color-surface: #050505;
-  --color-surface-2: #111111;
-  --color-surface-3: #1d1d1d;
-  --color-border: rgba(255, 255, 255, 0.7);
-  --color-border-strong: #ffffff;
-  --color-text: #ffffff;
-  --color-text-soft: #ecece6;
-  --color-muted: #a4b4b8;
-  --color-accent: #ef7eaa;
-  --color-accent-soft: rgba(239, 126, 170, 0.18);
-  --color-accent-glow: rgba(239, 126, 170, 0.34);
-  --color-accent-light: #ff9ac0;
-  --color-positive: #6ed7c9;
-  --color-positive-soft: rgba(110, 215, 201, 0.2);
-  --color-warning: #ff7417;
-  --poster-cyan: #6ed7c9;
-  --poster-pink: #ef7eaa;
-  --poster-lime: #dfff00;
-  --poster-orange: #ff7417;
-  --y2k-white: #f7f7f2;
-  --y2k-ink: #030303;
-  --y2k-grid: rgba(255, 255, 255, 0.28);
-  --y2k-scan: rgba(255, 255, 255, 0.055);
 }
 
 @theme inline {

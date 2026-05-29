@@ -11,6 +11,7 @@ import {
 } from '../../shared/api/socialApi.js';
 import { supabase } from '../../shared/lib/supabase.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
+import ConfirmDialog from '../../shared/ui/ConfirmDialog.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
@@ -47,6 +48,8 @@ export default function MessagesPanel({
   const [error, setError] = useState('');
   const [messageActionError, setMessageActionError] = useState('');
   const [sendError, setSendError] = useState('');
+  const [busyMessageId, setBusyMessageId] = useState(null);
+  const [confirmMessageId, setConfirmMessageId] = useState(null);
   const currentUserId = currentUser?.id;
   const activeIdRef = useRef(activeId);
   const messageInputRef = useRef(null);
@@ -258,6 +261,8 @@ export default function MessagesPanel({
     setEditingMessageDraft('');
     setMessageActionError('');
     setSendError('');
+    setBusyMessageId(null);
+    setConfirmMessageId(null);
   };
 
   const closeActiveConversation = () => {
@@ -371,13 +376,14 @@ export default function MessagesPanel({
   const saveMessageEdit = async (messageId) => {
     const text = editingMessageDraft.trim();
 
-    if (!text || !activeConversation) {
+    if (!text || !activeConversation || busyMessageId) {
       return;
     }
 
     const previousMessages = messagesByConversation[activeConversation.id] ?? [];
 
     try {
+      setBusyMessageId(messageId);
       setMessageActionError('');
       setMessagesByConversation((items) => ({
         ...items,
@@ -391,23 +397,29 @@ export default function MessagesPanel({
     } catch (updateError) {
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: previousMessages }));
       setMessageActionError(updateError.message);
+    } finally {
+      setBusyMessageId(null);
     }
   };
 
-  const removeMessage = async (messageId) => {
-    if (!activeConversation) {
+  const removeMessage = (messageId) => {
+    if (!activeConversation || busyMessageId) {
       return;
     }
 
-    const confirmed = window.confirm('Удалить сообщение?');
+    setConfirmMessageId(messageId);
+  };
 
-    if (!confirmed) {
+  const confirmRemoveMessage = async () => {
+    if (!activeConversation || !confirmMessageId || busyMessageId) {
       return;
     }
 
+    const messageId = confirmMessageId;
     const previousMessages = messagesByConversation[activeConversation.id] ?? [];
 
     try {
+      setBusyMessageId(messageId);
       setMessageActionError('');
       setMessagesByConversation((items) => ({
         ...items,
@@ -417,9 +429,12 @@ export default function MessagesPanel({
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
       setHasMoreByConversation((items) => ({ ...items, [activeConversation.id]: result.hasMore }));
       await loadConversations({ keepActive: true });
+      setConfirmMessageId(null);
     } catch (deleteError) {
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: previousMessages }));
       setMessageActionError(deleteError.message);
+    } finally {
+      setBusyMessageId(null);
     }
   };
 
@@ -601,6 +616,7 @@ export default function MessagesPanel({
                       activeMessages.map((message) => {
                         const own = message.authorId === currentUserId;
                         const editing = editingMessageId === message.id;
+                        const busy = busyMessageId === message.id;
                         return (
                           <div
                             className={[
@@ -615,20 +631,22 @@ export default function MessagesPanel({
                                 <textarea
                                   className="min-h-20 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
                                   maxLength={1000}
+                                  disabled={busy}
                                   onChange={(event) => setEditingMessageDraft(event.target.value)}
                                   value={editingMessageDraft}
                                 />
                                 <div className="flex flex-wrap gap-2">
                                   <button
-                                    className="rounded-sqd-xs border border-border-strong bg-accent-soft px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
-                                    disabled={!editingMessageDraft.trim()}
+                                    className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
+                                    disabled={!editingMessageDraft.trim() || busy}
                                     onClick={() => saveMessageEdit(message.id)}
                                     type="button"
                                   >
-                                    сохранить
+                                    {busy ? 'сохраняем...' : 'сохранить'}
                                   </button>
                                   <button
-                                    className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
+                                    className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text disabled:opacity-50"
+                                    disabled={busy}
                                     onClick={cancelEditMessage}
                                     type="button"
                                   >
@@ -648,19 +666,21 @@ export default function MessagesPanel({
                                     <span className="ml-auto inline-flex gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
                                       <button
                                         aria-label="Редактировать сообщение"
-                                        className="grid size-6 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text"
+                                        className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
+                                        disabled={Boolean(busyMessageId)}
                                         onClick={() => startEditMessage(message)}
                                         type="button"
                                       >
-                                        <Pencil size={12} strokeWidth={1.8} />
+                                        <Pencil size={14} strokeWidth={1.8} />
                                       </button>
                                       <button
                                         aria-label="Удалить сообщение"
-                                        className="grid size-6 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning"
+                                        className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                        disabled={Boolean(busyMessageId)}
                                         onClick={() => removeMessage(message.id)}
                                         type="button"
                                       >
-                                        <Trash2 size={12} strokeWidth={1.8} />
+                                        <Trash2 size={14} strokeWidth={1.8} />
                                       </button>
                                     </span>
                                   ) : null}
@@ -691,7 +711,7 @@ export default function MessagesPanel({
                       rows={1}
                       value={draft}
                     />
-                    <IconButton active={Boolean(draft.trim()) && !sending} disabled={sending} icon={SendHorizonal} label="Отправить" type="submit">
+                    <IconButton active={Boolean(draft.trim()) && !sending} disabled={!draft.trim() || sending} icon={SendHorizonal} label="Отправить" type="submit">
                       {sending ? '...' : null}
                     </IconButton>
                   </div>
@@ -715,6 +735,15 @@ export default function MessagesPanel({
           </div>
         </div>
       </Panel>
+      <ConfirmDialog
+        busy={Boolean(busyMessageId)}
+        confirmLabel="Удалить"
+        description="Сообщение будет удалено без восстановления."
+        onCancel={() => setConfirmMessageId(null)}
+        onConfirm={confirmRemoveMessage}
+        open={Boolean(confirmMessageId)}
+        title="Удалить сообщение?"
+      />
     </section>
   );
 }

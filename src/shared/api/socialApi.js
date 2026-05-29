@@ -16,6 +16,58 @@ const NOTIFICATION_LABELS = {
   message: 'написал(а) сообщение',
 };
 
+const MEDIA_BUCKET = 'avatars';
+const POST_PAGE_SIZE = 20;
+const SIGNED_MEDIA_TTL = 60 * 60;
+
+const isRemoteOrInlineImage = (value = '') => /^(?:data:|blob:|https?:\/\/)/i.test(value);
+
+const collectProfileMediaPaths = (profiles = []) => {
+  const paths = [];
+
+  profiles.forEach((profile) => {
+    [profile?.avatar_image, profile?.banner_image].forEach((value) => {
+      if (value && !isRemoteOrInlineImage(value)) {
+        paths.push(value);
+      }
+    });
+  });
+
+  return paths;
+};
+
+const getSignedMediaMap = async (paths = []) => {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+
+  if (!isSupabaseConfigured || uniquePaths.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(uniquePaths, SIGNED_MEDIA_TTL);
+
+  if (error) {
+    return new Map();
+  }
+
+  return new Map(
+    (data || [])
+      .filter((item) => item?.path && item?.signedUrl)
+      .map((item) => [item.path, item.signedUrl]),
+  );
+};
+
+const resolveMediaUrl = (value = '', mediaMap = new Map()) => {
+  if (!value) {
+    return '';
+  }
+
+  if (isRemoteOrInlineImage(value)) {
+    return value;
+  }
+
+  return mediaMap.get(value) || '';
+};
+
 const getErrorMessage = (error) => error?.message || 'Supabase request failed';
 
 const toTimeLabel = (value) => {
@@ -60,8 +112,10 @@ const getInitials = (name) =>
     .join('')
     .toUpperCase();
 
-export const mapProfile = (profile = {}) => {
+export const mapProfile = (profile = {}, mediaMap = new Map()) => {
   const name = profile.name || profile.user_id || 'Squad user';
+  const avatarImagePath = profile.avatar_image || '';
+  const bannerImagePath = profile.banner_image || '';
 
   return {
     id: profile.id,
@@ -69,15 +123,17 @@ export const mapProfile = (profile = {}) => {
     name,
     role: profile.role || 'Member',
     avatar: profile.avatar || getInitials(name),
-    avatarImage: profile.avatar_image || '',
-    bannerImage: profile.banner_image || '',
+    avatarImage: resolveMediaUrl(avatarImagePath, mediaMap),
+    avatarImagePath,
+    bannerImage: resolveMediaUrl(bannerImagePath, mediaMap),
+    bannerImagePath,
     status: profile.status || 'online',
     bio: profile.bio || '',
     stats: [],
   };
 };
 
-const mapComment = (comment) => {
+const mapComment = (comment, mediaMap = new Map()) => {
   const author = comment.author || comment.profiles || {};
 
   return {
@@ -86,7 +142,8 @@ const mapComment = (comment) => {
     author: author.name || 'Squad user',
     userId: author.user_id || 'squad',
     avatar: author.avatar || getInitials(author.name),
-    avatarImage: author.avatar_image || '',
+    avatarImage: resolveMediaUrl(author.avatar_image || '', mediaMap),
+    avatarImagePath: author.avatar_image || '',
     createdAt: comment.created_at,
     edited: Boolean(comment.updated_at && comment.created_at && comment.updated_at !== comment.created_at),
     text: comment.text,
@@ -94,7 +151,7 @@ const mapComment = (comment) => {
   };
 };
 
-const mapPost = (post, currentUserId) => {
+const mapPost = (post, currentUserId, mediaMap = new Map()) => {
   const author = post.author || post.profiles || {};
   const reactions = post.reactions || post.post_reactions || [];
   const comments = post.comments || [];
@@ -119,7 +176,8 @@ const mapPost = (post, currentUserId) => {
     author: author.name || 'Squad user',
     userId: author.user_id || 'squad',
     avatar: author.avatar || getInitials(author.name),
-    avatarImage: author.avatar_image || '',
+    avatarImage: resolveMediaUrl(author.avatar_image || '', mediaMap),
+    avatarImagePath: author.avatar_image || '',
     edited: Boolean(post.updated_at && post.created_at && post.updated_at !== post.created_at),
     time: toTimeLabel(post.created_at),
     text: post.text,
@@ -134,11 +192,12 @@ const mapPost = (post, currentUserId) => {
     liked: ownReactions.has('like'),
     reposted: ownReactions.has('repost'),
     bookmarked: ownReactions.has('bookmark'),
-    comments: comments.map(mapComment),
+    comments: comments.map((comment) => mapComment(comment, mediaMap)),
+    createdAt: post.created_at,
   };
 };
 
-const mapNotification = (notification) => {
+const mapNotification = (notification, mediaMap = new Map(), messageConversationMap = new Map()) => {
   const actor = notification.actor || notification.profiles || {};
   const actorName = actor.name || 'Участник';
   const body = notification.text || `${actorName} ${NOTIFICATION_LABELS[notification.type] || 'обновил(а) активность'}`;
@@ -148,20 +207,24 @@ const mapNotification = (notification) => {
     actorId: notification.actor_id,
     actorName,
     actorAvatar: actor.avatar || getInitials(actorName),
-    actorAvatarImage: actor.avatar_image || '',
+    actorAvatarImage: resolveMediaUrl(actor.avatar_image || '', mediaMap),
+    actorAvatarImagePath: actor.avatar_image || '',
     type: notification.type,
     text: body,
     postId: notification.post_id,
+    commentId: notification.comment_id,
+    messageId: notification.message_id,
+    conversationId: notification.message_id ? messageConversationMap.get(notification.message_id) || null : null,
     readAt: notification.read_at,
     time: toTimeLabel(notification.created_at),
     createdAt: notification.created_at,
   };
 };
 
-const mapConversation = (conversation, currentUserId) => {
+const mapConversation = (conversation, currentUserId, mediaMap = new Map()) => {
   const members = conversation.members || conversation.direct_conversation_members || [];
   const otherMember = members.find((member) => member.user_id !== currentUserId) || members[0];
-  const participant = otherMember?.profile ? mapProfile(otherMember.profile) : null;
+  const participant = otherMember?.profile ? mapProfile(otherMember.profile, mediaMap) : null;
   const messages = conversation.messages || conversation.direct_messages || [];
   const lastMessage = messages[0];
   const ownMember = members.find((member) => member.user_id === currentUserId);
@@ -188,6 +251,41 @@ const mapMessage = (message) => ({
   edited: Boolean(message.updated_at && message.created_at && message.updated_at !== message.created_at),
 });
 
+const collectPostMediaPaths = (posts = []) => {
+  const profiles = [];
+
+  posts.forEach((post) => {
+    if (post.author) {
+      profiles.push(post.author);
+    }
+
+    (post.comments || []).forEach((comment) => {
+      if (comment.author) {
+        profiles.push(comment.author);
+      }
+    });
+  });
+
+  return collectProfileMediaPaths(profiles);
+};
+
+const collectConversationMediaPaths = (conversations = []) => {
+  const profiles = [];
+
+  conversations.forEach((conversation) => {
+    (conversation.members || conversation.direct_conversation_members || []).forEach((member) => {
+      if (member.profile) {
+        profiles.push(member.profile);
+      }
+    });
+  });
+
+  return collectProfileMediaPaths(profiles);
+};
+
+const collectNotificationMediaPaths = (notifications = []) =>
+  collectProfileMediaPaths(notifications.map((notification) => notification.actor).filter(Boolean));
+
 export async function fetchProfiles() {
   if (!isSupabaseConfigured) {
     return [];
@@ -202,12 +300,84 @@ export async function fetchProfiles() {
     throw new Error(getErrorMessage(error));
   }
 
-  return data.map(mapProfile);
+  const mediaMap = await getSignedMediaMap(collectProfileMediaPaths(data));
+  return data.map((profile) => mapProfile(profile, mediaMap));
+}
+
+export async function fetchPostsPage(currentUserId, { cursor = null, limit = POST_PAGE_SIZE } = {}) {
+  if (!isSupabaseConfigured) {
+    return { hasMore: false, nextCursor: null, posts: [] };
+  }
+
+  let query = supabase
+    .from('posts')
+    .select(`
+      id,
+      owner_id,
+      text,
+      tags,
+      created_at,
+      updated_at,
+      author:profiles!posts_owner_id_fkey (
+        id,
+        user_id,
+        name,
+        avatar,
+        avatar_image
+      ),
+      comments (
+        id,
+        text,
+        created_at,
+        updated_at,
+        author:profiles!comments_author_id_fkey (
+          id,
+          user_id,
+          name,
+          role,
+          avatar,
+          avatar_image
+        )
+      ),
+      reactions:post_reactions (
+        user_id,
+        type
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .order('created_at', { referencedTable: 'comments', ascending: true })
+    .limit(limit + 1);
+
+  if (cursor) {
+    query = query.lt('created_at', cursor);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  const pageRows = (data || []).slice(0, limit);
+  const mediaMap = await getSignedMediaMap(collectPostMediaPaths(pageRows));
+  const posts = pageRows.map((post) => mapPost(post, currentUserId, mediaMap));
+  const lastPost = posts[posts.length - 1];
+
+  return {
+    hasMore: (data || []).length > limit,
+    nextCursor: lastPost?.createdAt || null,
+    posts,
+  };
 }
 
 export async function fetchPosts(currentUserId) {
-  if (!isSupabaseConfigured) {
-    return [];
+  const page = await fetchPostsPage(currentUserId);
+  return page.posts;
+}
+
+export async function fetchPostById(currentUserId, postId) {
+  if (!isSupabaseConfigured || !postId) {
+    return null;
   }
 
   const { data, error } = await supabase
@@ -245,14 +415,20 @@ export async function fetchPosts(currentUserId) {
         type
       )
     `)
-    .order('created_at', { ascending: false })
-    .order('created_at', { referencedTable: 'comments', ascending: true });
+    .eq('id', postId)
+    .order('created_at', { referencedTable: 'comments', ascending: true })
+    .maybeSingle();
 
   if (error) {
     throw new Error(getErrorMessage(error));
   }
 
-  return data.map((post) => mapPost(post, currentUserId));
+  if (!data) {
+    return null;
+  }
+
+  const mediaMap = await getSignedMediaMap(collectPostMediaPaths([data]));
+  return mapPost(data, currentUserId, mediaMap);
 }
 
 export async function createPost({ currentUserId, hashtags, text }) {
@@ -429,10 +605,9 @@ export async function updateProfile(profile) {
     .update({
       user_id: profile.userId,
       name: profile.name,
-      role: profile.role,
       avatar: profile.avatar,
-      avatar_image: profile.avatarImage,
-      banner_image: profile.bannerImage,
+      avatar_image: profile.avatarImagePath ?? profile.avatarImage ?? '',
+      banner_image: profile.bannerImagePath ?? profile.bannerImage ?? '',
       status: profile.status,
       bio: profile.bio,
     })
@@ -444,7 +619,32 @@ export async function updateProfile(profile) {
     throw new Error(getErrorMessage(error));
   }
 
-  return mapProfile(data);
+  const mediaMap = await getSignedMediaMap(collectProfileMediaPaths([data]));
+  return mapProfile(data, mediaMap);
+}
+
+export async function uploadProfileImage({ blob, currentUserId, field }) {
+  if (!isSupabaseConfigured) {
+    return '';
+  }
+
+  if (!blob || !currentUserId) {
+    throw new Error('Image upload failed.');
+  }
+
+  const filename = field === 'bannerImage' ? 'banner.webp' : 'avatar.webp';
+  const path = `${currentUserId}/${filename}`;
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, blob, {
+    cacheControl: '3600',
+    contentType: 'image/webp',
+    upsert: true,
+  });
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return path;
 }
 
 export async function fetchNotifications(currentUserId) {
@@ -481,7 +681,22 @@ export async function fetchNotifications(currentUserId) {
     throw new Error(getErrorMessage(error));
   }
 
-  return data.map(mapNotification);
+  const messageIds = Array.from(new Set((data || []).map((item) => item.message_id).filter(Boolean)));
+  let messageConversationMap = new Map();
+
+  if (messageIds.length > 0) {
+    const { data: messages, error: messageError } = await supabase
+      .from('direct_messages')
+      .select('id, conversation_id')
+      .in('id', messageIds);
+
+    if (!messageError) {
+      messageConversationMap = new Map((messages || []).map((message) => [message.id, message.conversation_id]));
+    }
+  }
+
+  const mediaMap = await getSignedMediaMap(collectNotificationMediaPaths(data));
+  return data.map((notification) => mapNotification(notification, mediaMap, messageConversationMap));
 }
 
 export async function markNotificationsRead(currentUserId) {
@@ -543,7 +758,8 @@ export async function fetchConversations(currentUserId) {
     throw new Error(getErrorMessage(error));
   }
 
-  return data.map((conversation) => mapConversation(conversation, currentUserId));
+  const mediaMap = await getSignedMediaMap(collectConversationMediaPaths(data));
+  return data.map((conversation) => mapConversation(conversation, currentUserId, mediaMap));
 }
 
 export async function fetchMessages(conversationId, { before, limit = 50 } = {}) {
