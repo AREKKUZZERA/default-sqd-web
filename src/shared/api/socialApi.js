@@ -487,7 +487,7 @@ export async function fetchPostById(currentUserId, postId) {
   return mapPost(data, currentUserId, mediaMap);
 }
 
-export async function createPost({ currentUserId, hashtags, text }) {
+export async function createPost({ hashtags, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -507,7 +507,7 @@ export async function createPost({ currentUserId, hashtags, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts();
 }
 
 export async function updatePost({ currentUserId, hashtags, postId, text }) {
@@ -537,7 +537,7 @@ export async function updatePost({ currentUserId, hashtags, postId, text }) {
   return fetchPosts(currentUserId);
 }
 
-export async function createComment({ currentUserId, postId, text }) {
+export async function createComment({ postId, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -549,7 +549,7 @@ export async function createComment({ currentUserId, postId, text }) {
   }
 
   const { error } = await supabase.rpc('create_comment_safe', {
-    target_post_id: postId,
+    target_post_id: Number(postId),
     body: cleanText,
   });
 
@@ -557,7 +557,7 @@ export async function createComment({ currentUserId, postId, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts();
 }
 
 export async function deletePost({ currentUserId, postId }) {
