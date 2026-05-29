@@ -87,3 +87,19 @@ Run `007_remove_demo_content.sql` once after the release migration. It deletes l
 - `user_noor_lane`
 
 Their old posts, comments and reactions are removed automatically by `ON DELETE CASCADE`.
+
+### Content RPC repair
+
+If posts, comments, or direct messages return `404 / PGRST202` from `/rest/v1/rpc/create_post_safe`, `/create_comment_safe`, or `/send_direct_message_safe`, apply:
+
+```txt
+supabase/migrations/20260529_repair_content_rpc.sql
+```
+
+It removes conflicting overloaded RPC definitions and leaves exactly the signatures used by the frontend:
+
+```txt
+create_post_safe(body text, tag_list text[])
+create_comment_safe(body text, target_post_id bigint)
+send_direct_message_safe(body text, target_conversation_id uuid)
+```

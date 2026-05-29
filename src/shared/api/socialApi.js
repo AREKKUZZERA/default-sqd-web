@@ -515,10 +515,13 @@ export async function createPost({ currentUserId, hashtags, text }) {
     throw new Error(`Пост не может быть длиннее ${MAX_POST_LENGTH} символов.`);
   }
 
-  const { error } = await supabase.rpc('create_post_safe', {
-    body: cleanText,
-    tag_list: normalizeTags(hashtags),
-  });
+  const { error } = await supabase
+    .from('posts')
+    .insert({
+      owner_id: currentUserId,
+      tags: normalizeTags(hashtags),
+      text: cleanText,
+    });
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -573,10 +576,13 @@ export async function createComment({ currentUserId, postId, text }) {
     throw new Error(`Комментарий не может быть длиннее ${MAX_COMMENT_LENGTH} символов.`);
   }
 
-  const { error } = await supabase.rpc('create_comment_safe', {
-    body: cleanText,
-    target_post_id: postId,
-  });
+  const { error } = await supabase
+    .from('comments')
+    .insert({
+      author_id: currentUserId,
+      post_id: postId,
+      text: cleanText,
+    });
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -901,7 +907,7 @@ export async function createDirectConversation(currentUserId, participantId) {
   return data;
 }
 
-export async function sendDirectMessage({ conversationId, text }) {
+export async function sendDirectMessage({ conversationId, currentUserId, text }) {
   if (!isSupabaseConfigured) {
     return { hasMore: false, messages: [] };
   }
@@ -912,10 +918,17 @@ export async function sendDirectMessage({ conversationId, text }) {
     throw new Error('Сообщение не может быть пустым.');
   }
 
-  const { error } = await supabase.rpc('send_direct_message_safe', {
-    body: cleanText,
-    target_conversation_id: conversationId,
-  });
+  if (!currentUserId) {
+    throw new Error('Не удалось определить отправителя сообщения.');
+  }
+
+  const { error } = await supabase
+    .from('direct_messages')
+    .insert({
+      conversation_id: conversationId,
+      sender_id: currentUserId,
+      text: cleanText,
+    });
 
   if (error) {
     throw new Error(getErrorMessage(error));
