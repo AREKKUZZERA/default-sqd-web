@@ -52,7 +52,7 @@ export default function PostComposer({ currentUser, onPost }) {
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted">Хештеги можно добавить прямо в текст: #team</p>
+            <p className="text-xs text-muted">Хештеги можно добавить прямо в текст: #shluxabot</p>
             <div className="flex items-center gap-3">
               <span className={['font-mono text-[0.65rem]', remaining < 30 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {remaining}
