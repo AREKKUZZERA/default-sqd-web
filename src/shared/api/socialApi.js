@@ -82,9 +82,13 @@ const mapComment = (comment) => {
 
   return {
     id: comment.id,
+    authorId: author.id,
     author: author.name || 'Squad user',
+    userId: author.user_id || 'squad',
     avatar: author.avatar || getInitials(author.name),
     avatarImage: author.avatar_image || '',
+    createdAt: comment.created_at,
+    edited: Boolean(comment.updated_at && comment.created_at && comment.updated_at !== comment.created_at),
     text: comment.text,
     time: toTimeLabel(comment.created_at),
   };
@@ -116,14 +120,17 @@ const mapPost = (post, currentUserId) => {
     userId: author.user_id || 'squad',
     avatar: author.avatar || getInitials(author.name),
     avatarImage: author.avatar_image || '',
+    edited: Boolean(post.updated_at && post.created_at && post.updated_at !== post.created_at),
     time: toTimeLabel(post.created_at),
     text: post.text,
-    mediaAttached: Boolean(post.media_attached),
     tag: tags[0],
     tags,
     likes: reactionCounts.like || 0,
     replies: comments.length,
     reposts: reactionCounts.repost || 0,
+    likedBy: reactions.filter((reaction) => reaction.type === 'like').map((reaction) => reaction.user_id),
+    repostedBy: reactions.filter((reaction) => reaction.type === 'repost').map((reaction) => reaction.user_id),
+    bookmarkedBy: reactions.filter((reaction) => reaction.type === 'bookmark').map((reaction) => reaction.user_id),
     liked: ownReactions.has('like'),
     reposted: ownReactions.has('repost'),
     bookmarked: ownReactions.has('bookmark'),
@@ -178,6 +185,7 @@ const mapMessage = (message) => ({
   body: message.text,
   time: toTimeLabel(message.created_at),
   createdAt: message.created_at,
+  edited: Boolean(message.updated_at && message.created_at && message.updated_at !== message.created_at),
 });
 
 export async function fetchProfiles() {
@@ -208,9 +216,9 @@ export async function fetchPosts(currentUserId) {
       id,
       owner_id,
       text,
-      media_attached,
       tags,
       created_at,
+      updated_at,
       author:profiles!posts_owner_id_fkey (
         id,
         user_id,
@@ -222,10 +230,12 @@ export async function fetchPosts(currentUserId) {
         id,
         text,
         created_at,
+        updated_at,
         author:profiles!comments_author_id_fkey (
           id,
           user_id,
           name,
+          role,
           avatar,
           avatar_image
         )
@@ -245,7 +255,7 @@ export async function fetchPosts(currentUserId) {
   return data.map((post) => mapPost(post, currentUserId));
 }
 
-export async function createPost({ currentUserId, hashtags, mediaAttached = false, text }) {
+export async function createPost({ currentUserId, hashtags, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -259,9 +269,35 @@ export async function createPost({ currentUserId, hashtags, mediaAttached = fals
   const { error } = await supabase.from('posts').insert({
     owner_id: currentUserId,
     text: cleanText,
-    media_attached: mediaAttached,
     tags: normalizeTags(hashtags),
   });
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchPosts(currentUserId);
+}
+
+export async function updatePost({ currentUserId, hashtags, postId, text }) {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    throw new Error('Пост не может быть пустым.');
+  }
+
+  const { error } = await supabase
+    .from('posts')
+    .update({
+      tags: normalizeTags(hashtags),
+      text: cleanText,
+    })
+    .eq('id', postId)
+    .eq('owner_id', currentUserId);
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -320,6 +356,30 @@ export async function deleteComment({ commentId, currentUserId }) {
   const { error } = await supabase
     .from('comments')
     .delete()
+    .eq('id', commentId)
+    .eq('author_id', currentUserId);
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchPosts(currentUserId);
+}
+
+export async function updateComment({ commentId, currentUserId, text }) {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    throw new Error('Комментарий не может быть пустым.');
+  }
+
+  const { error } = await supabase
+    .from('comments')
+    .update({ text: cleanText })
     .eq('id', commentId)
     .eq('author_id', currentUserId);
 
@@ -471,7 +531,8 @@ export async function fetchConversations(currentUserId) {
         id,
         sender_id,
         text,
-        created_at
+        created_at,
+        updated_at
       )
     `)
     .order('created_at', { ascending: false })
@@ -485,23 +546,32 @@ export async function fetchConversations(currentUserId) {
   return data.map((conversation) => mapConversation(conversation, currentUserId));
 }
 
-export async function fetchMessages(conversationId) {
+export async function fetchMessages(conversationId, { before, limit = 50 } = {}) {
   if (!isSupabaseConfigured || !conversationId) {
-    return [];
+    return { hasMore: false, messages: [] };
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('direct_messages')
-    .select('id, conversation_id, sender_id, text, created_at')
+    .select('id, conversation_id, sender_id, text, created_at, updated_at')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-    .limit(100);
+    .order('created_at', { ascending: false })
+    .limit(limit + 1);
+
+  if (before) {
+    query = query.lt('created_at', before);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(getErrorMessage(error));
   }
 
-  return data.map(mapMessage);
+  return {
+    hasMore: data.length > limit,
+    messages: data.slice(0, limit).reverse().map(mapMessage),
+  };
 }
 
 export async function createDirectConversation(currentUserId, participantId) {
@@ -530,7 +600,7 @@ export async function createDirectConversation(currentUserId, participantId) {
 
 export async function sendDirectMessage({ conversationId, currentUserId, text }) {
   if (!isSupabaseConfigured) {
-    return [];
+    return { hasMore: false, messages: [] };
   }
 
   const cleanText = text.trim();
@@ -544,6 +614,48 @@ export async function sendDirectMessage({ conversationId, currentUserId, text })
     sender_id: currentUserId,
     text: cleanText,
   });
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchMessages(conversationId);
+}
+
+export async function updateDirectMessage({ conversationId, currentUserId, messageId, text }) {
+  if (!isSupabaseConfigured) {
+    return { hasMore: false, messages: [] };
+  }
+
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    throw new Error('Сообщение не может быть пустым.');
+  }
+
+  const { error } = await supabase
+    .from('direct_messages')
+    .update({ text: cleanText })
+    .eq('id', messageId)
+    .eq('sender_id', currentUserId);
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchMessages(conversationId);
+}
+
+export async function deleteDirectMessage({ conversationId, currentUserId, messageId }) {
+  if (!isSupabaseConfigured) {
+    return { hasMore: false, messages: [] };
+  }
+
+  const { error } = await supabase
+    .from('direct_messages')
+    .delete()
+    .eq('id', messageId)
+    .eq('sender_id', currentUserId);
 
   if (error) {
     throw new Error(getErrorMessage(error));

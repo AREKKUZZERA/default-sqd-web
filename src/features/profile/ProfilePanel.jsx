@@ -1,4 +1,4 @@
-import { Home, Link2, MessageCircle, UserCircle } from 'lucide-react';
+import { Home, MessageCircle, UserCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
@@ -9,10 +9,11 @@ const sidebarNavigation = [
 ];
 
 export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, trends }) {
+  const visibleTrends = trends.slice(0, 5);
+
   return (
     <div className="grid gap-4">
       <Panel className="overflow-hidden">
-        <div className="y2k-barcode" aria-hidden="true" />
         <button className="block w-full text-left" onClick={onOpenProfile} type="button">
           <div
             className="poster-band h-24 border-b border-border bg-cover bg-center"
@@ -50,10 +51,6 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
             <span className="inline-flex items-center gap-2">
               <UserCircle size={15} strokeWidth={1.8} /> {currentUser.role || 'Member'}
             </span>
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <Link2 size={15} strokeWidth={1.8} />
-              <span className="truncate">profile/{currentUser.userId}</span>
-            </span>
           </div>
         </div>
       </Panel>
@@ -85,12 +82,12 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
 
       <Panel className="hidden p-4 lg:block">
         <div className="mb-3">
-          <h2 className="font-ui text-base font-bold text-text">Темы</h2>
-          <p className="mt-1 text-sm text-muted">Хештеги из настоящих постов</p>
+          <h2 className="font-ui text-base font-bold text-text">Популярные темы</h2>
+          <p className="mt-1 text-sm text-muted">5 самых частых хештегов в ленте</p>
         </div>
         <div className="grid gap-2">
-          {trends.length > 0 ? (
-            trends.map((trend) => (
+          {visibleTrends.length > 0 ? (
+            visibleTrends.map((trend) => (
               <button
                 className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
                 key={trend.tag}

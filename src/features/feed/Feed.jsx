@@ -9,9 +9,13 @@ export default function Feed({
   currentUser,
   onAddPost,
   onCommentPost,
+  onDeleteComment,
   onDeletePost,
+  onOpenProfile,
   onSelectAuthor,
   onTogglePost,
+  onUpdateComment,
+  onUpdatePost,
   posts,
   query,
 }) {
@@ -19,7 +23,6 @@ export default function Feed({
     <section className="min-w-0" id="feed">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="y2k-label mb-2">live_feed / release</span>
           <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Лента</h1>
         </div>
         <div className="rounded-sqd-sm border border-border bg-surface/80 px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em] text-text-soft">
@@ -55,13 +58,25 @@ export default function Feed({
       <div className="grid gap-3">
         {posts.length > 0 ? (
           posts.map((post) => (
-            <PostCard compact={compactMode} currentUser={currentUser} key={post.id} onComment={onCommentPost} onDelete={onDeletePost} onToggle={onTogglePost} post={post} />
+            <PostCard
+              compact={compactMode}
+              currentUser={currentUser}
+              key={post.id}
+              onComment={onCommentPost}
+              onDeleteComment={onDeleteComment}
+              onDelete={onDeletePost}
+              onOpenProfile={onOpenProfile}
+              onToggle={onTogglePost}
+              onUpdateComment={onUpdateComment}
+              onUpdatePost={onUpdatePost}
+              post={post}
+            />
           ))
         ) : (
           <Panel className="p-8 text-center">
             <p className="font-ui text-lg font-bold text-text">Пока пусто</p>
             <p className="mt-2 text-sm text-text-soft">
-              {query ? 'Попробуйте изменить поиск или фильтр.' : 'Опубликуйте первый настоящий пост — мок-данные больше не показываются.'}
+              {query ? 'Попробуйте изменить поиск или фильтр.' : 'Опубликуйте первый пост.'}
             </p>
           </Panel>
         )}

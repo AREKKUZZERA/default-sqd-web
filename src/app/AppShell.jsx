@@ -1,4 +1,4 @@
-import { Bell, Check, Home, LogOut, MessageCircle, Search, Settings, UserCircle } from 'lucide-react';
+import { Bell, Home, LogOut, MessageCircle, Search, Settings, UserCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import MessagesPanel from '../features/messages/MessagesPanel.jsx';
@@ -6,7 +6,9 @@ import ProfilePage from '../features/profile/ProfilePage.jsx';
 import ProfilePanel from '../features/profile/ProfilePanel.jsx';
 import {
   createComment as createRemoteComment,
+  createDirectConversation,
   createPost as createRemotePost,
+  deleteComment as deleteRemoteComment,
   deletePost as deleteRemotePost,
   fetchNotifications,
   fetchPosts,
@@ -14,10 +16,12 @@ import {
   getReactionTypeByKey,
   markNotificationsRead,
   toggleReaction,
+  updateComment as updateRemoteComment,
+  updatePost as updateRemotePost,
   updateProfile as updateRemoteProfile,
 } from '../shared/api/socialApi.js';
 import { supabase } from '../shared/lib/supabase.js';
-import { buildHashtagTrends } from '../shared/utils/hashtags.js';
+import { buildHashtagTrends, extractHashtags } from '../shared/utils/hashtags.js';
 import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
 import Panel from '../shared/ui/Panel.jsx';
@@ -28,12 +32,36 @@ const mobileNavigation = [
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
+const getProfileKeyFromPath = () => {
+  const match = window.location.pathname.match(/^\/profile\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : '';
+};
+
+const getInitialView = () => (getProfileKeyFromPath() ? 'profile' : 'feed');
+
+const updateBrowserPath = (path) => {
+  if (window.location.pathname !== path) {
+    window.history.pushState({}, '', path);
+  }
+};
+
+const getWallPosts = (profileId, posts) =>
+  posts.filter(
+    (post) =>
+      post.ownerId === profileId ||
+      post.likedBy?.includes(profileId) ||
+      post.repostedBy?.includes(profileId) ||
+      post.bookmarkedBy?.includes(profileId),
+  );
+
 export default function AppShell({ authenticatedUser, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
   const remoteReloadTimerRef = useRef(null);
-  const [activeView, setActiveView] = useState('feed');
+  const [activeView, setActiveView] = useState(getInitialView);
   const [currentUser, setCurrentUser] = useState(authenticatedUser);
+  const [selectedProfileKey, setSelectedProfileKey] = useState(() => getProfileKeyFromPath() || authenticatedUser.userId || authenticatedUser.id);
+  const [preferredConversationId, setPreferredConversationId] = useState(null);
   const [people, setPeople] = useState([]);
   const [posts, setPosts] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -128,21 +156,43 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     return () => document.removeEventListener('pointerdown', closeOpenPanels);
   }, [notificationsOpen, settingsOpen]);
 
+  const getProfileWithStats = useCallback(
+    (profile) => {
+      const profilePosts = posts.filter((post) => post.ownerId === profile.id);
+      const wallPosts = getWallPosts(profile.id, posts);
+
+      return {
+        ...profile,
+        stats: [
+          { label: 'стена', value: String(wallPosts.length) },
+          { label: 'ответы', value: String(profilePosts.reduce((sum, post) => sum + post.comments.length, 0)) },
+          { label: 'реакции', value: String(profilePosts.reduce((sum, post) => sum + post.likes + post.reposts, 0)) },
+        ],
+      };
+    },
+    [posts],
+  );
+
   const displayedUser = useMemo(() => {
     const freshProfile = people.find((person) => person.id === currentUser?.id) || currentUser;
-    const ownPosts = posts.filter((post) => post.ownerId === currentUser.id).length;
-    const ownReposts = posts.filter((post) => post.reposted).length;
-    const ownBookmarks = posts.filter((post) => post.bookmarked).length;
+    return getProfileWithStats(freshProfile);
+  }, [currentUser, getProfileWithStats, people]);
 
-    return {
-      ...freshProfile,
-      stats: [
-        { label: 'посты', value: String(ownPosts) },
-        { label: 'репосты', value: String(ownReposts) },
-        { label: 'избранное', value: String(ownBookmarks) },
-      ],
-    };
-  }, [currentUser, people, posts]);
+  const selectedProfile = useMemo(() => {
+    const profile = people.find((person) => person.id === selectedProfileKey || person.userId === selectedProfileKey);
+
+    if (profile) {
+      return getProfileWithStats(profile);
+    }
+
+    if (selectedProfileKey === displayedUser.id || selectedProfileKey === displayedUser.userId) {
+      return displayedUser;
+    }
+
+    return null;
+  }, [displayedUser, getProfileWithStats, people, selectedProfileKey]);
+
+  const profileMissing = activeView === 'profile' && backendReady && !selectedProfile;
 
   const authorFilters = useMemo(
     () => [
@@ -172,43 +222,125 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const hashtagTrends = useMemo(() => buildHashtagTrends(posts), [posts]);
 
-  const addPost = async ({ hashtags, mediaAttached = false, text }) => {
+  const addPost = async ({ hashtags, text }) => {
+    const previousPosts = posts;
+
     try {
-      const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, mediaAttached, text });
+      const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, text });
       setPosts(remotePosts);
     } catch (error) {
-      setBackendError(error.message);
+      setPosts(previousPosts);
+      throw error;
     }
   };
 
   const addComment = async (postId, text) => {
+    const previousPosts = posts;
+    const temporaryComment = {
+      id: `pending-comment-${Date.now()}`,
+      author: displayedUser.name,
+      authorId: currentUser.id,
+      avatar: displayedUser.avatar,
+      avatarImage: displayedUser.avatarImage,
+      pending: true,
+      text,
+      time: 'отправляется',
+      userId: displayedUser.userId,
+    };
+
+    setPosts((items) =>
+      items.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              comments: [...post.comments, temporaryComment],
+              replies: post.replies + 1,
+            }
+          : post,
+      ),
+    );
+
     try {
       const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
       setPosts(remotePosts);
     } catch (error) {
-      setBackendError(error.message);
+      setPosts(previousPosts);
+      throw error;
     }
   };
 
   const deletePost = async (postId) => {
+    const previousPosts = posts;
+    setPosts((items) => items.filter((post) => post.id !== postId));
+
     try {
       const remotePosts = await deleteRemotePost({ currentUserId: currentUser.id, postId });
       setPosts(remotePosts);
     } catch (error) {
-      setBackendError(error.message);
+      setPosts(previousPosts);
+      throw error;
+    }
+  };
+
+  const deleteComment = async (commentId) => {
+    const previousPosts = posts;
+    setPosts((items) =>
+      items.map((post) => ({
+        ...post,
+        comments: post.comments.filter((comment) => comment.id !== commentId),
+        replies: post.comments.some((comment) => comment.id === commentId) ? Math.max(0, post.replies - 1) : post.replies,
+      })),
+    );
+
+    try {
+      const remotePosts = await deleteRemoteComment({ commentId, currentUserId: currentUser.id });
+      setPosts(remotePosts);
+    } catch (error) {
+      setPosts(previousPosts);
+      throw error;
+    }
+  };
+
+  const updateComment = async (commentId, text) => {
+    const previousPosts = posts;
+    setPosts((items) =>
+      items.map((post) => ({
+        ...post,
+        comments: post.comments.map((comment) => (comment.id === commentId ? { ...comment, edited: true, pending: true, text } : comment)),
+      })),
+    );
+
+    try {
+      const remotePosts = await updateRemoteComment({ commentId, currentUserId: currentUser.id, text });
+      setPosts(remotePosts);
+    } catch (error) {
+      setPosts(previousPosts);
+      throw error;
+    }
+  };
+
+  const updatePost = async (postId, text) => {
+    const previousPosts = posts;
+    const hashtags = extractHashtags(text);
+
+    setPosts((items) =>
+      items.map((post) => (post.id === postId ? { ...post, edited: true, pending: true, tag: hashtags[0], tags: hashtags, text } : post)),
+    );
+
+    try {
+      const remotePosts = await updateRemotePost({ currentUserId: currentUser.id, hashtags, postId, text });
+      setPosts(remotePosts);
+    } catch (error) {
+      setPosts(previousPosts);
+      throw error;
     }
   };
 
   const updateProfile = async (updater) => {
     const nextProfile = typeof updater === 'function' ? updater(displayedUser) : updater;
-
-    try {
-      const remoteProfile = await updateRemoteProfile(nextProfile);
-      setCurrentUser(remoteProfile);
-      await loadRemoteData();
-    } catch (error) {
-      setBackendError(error.message);
-    }
+    const remoteProfile = await updateRemoteProfile(nextProfile);
+    setCurrentUser(remoteProfile);
+    await loadRemoteData();
   };
 
   const togglePost = async (postId, key) => {
@@ -219,17 +351,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return;
     }
 
-    try {
-      const remotePosts = await toggleReaction({
-        active: Boolean(post[key]),
-        currentUserId: currentUser.id,
-        postId,
-        type,
-      });
-      setPosts(remotePosts);
-    } catch (error) {
-      setBackendError(error.message);
-    }
+    const remotePosts = await toggleReaction({
+      active: Boolean(post[key]),
+      currentUserId: currentUser.id,
+      postId,
+      type,
+    });
+    setPosts(remotePosts);
   };
 
   const markAllNotificationsRead = async () => {
@@ -241,20 +369,80 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     }
   };
 
-  const showProfile = () => setActiveView('profile');
-  const showFeed = () => setActiveView('feed');
+  const clearPreferredConversation = useCallback(() => {
+    setPreferredConversationId(null);
+  }, []);
+
+  const showProfile = (profileId = currentUser.id) => {
+    const profile = people.find((person) => person.id === profileId || person.userId === profileId);
+    const isOwnProfile = profileId === currentUser.id || profileId === currentUser.userId;
+    const profileKey = profile?.userId || (isOwnProfile ? displayedUser.userId : profileId);
+    setSelectedProfileKey(profileKey);
+    setActiveView('profile');
+    updateBrowserPath(`/profile/${encodeURIComponent(profileKey)}`);
+  };
+  const showOwnProfile = () => showProfile(currentUser.id);
+  const showFeed = () => {
+    setActiveView('feed');
+    updateBrowserPath('/');
+  };
+  const navigateView = (target) => {
+    if (target === 'profile') {
+      showOwnProfile();
+      return;
+    }
+
+    setActiveView(target);
+    updateBrowserPath('/');
+  };
+
+  const startConversation = async (profileId) => {
+    if (!profileId || profileId === currentUser.id) {
+      return;
+    }
+
+    try {
+      setBackendError('');
+      const conversationId = await createDirectConversation(currentUser.id, profileId);
+      setPreferredConversationId(conversationId);
+      setActiveView('messages');
+      updateBrowserPath('/');
+    } catch (error) {
+      setBackendError(error.message);
+    }
+  };
 
   const selectTopic = (topic) => {
     setActiveTopic(topic);
     setActiveAuthor('all');
     setActiveView('feed');
+    updateBrowserPath('/');
   };
 
   const selectAuthor = (authorId) => {
     setActiveAuthor(authorId);
     setActiveTopic('all');
     setActiveView('feed');
+    updateBrowserPath('/');
   };
+
+  useEffect(() => {
+    const syncRoute = () => {
+      const profileKey = getProfileKeyFromPath();
+
+      if (profileKey) {
+        setSelectedProfileKey(profileKey);
+        setActiveView('profile');
+        return;
+      }
+
+      setActiveView('feed');
+    };
+
+    window.addEventListener('popstate', syncRoute);
+
+    return () => window.removeEventListener('popstate', syncRoute);
+  }, []);
 
   return (
     <div className="poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-6 sm:py-4 lg:px-8" data-density={compactMode ? 'compact' : 'default'}>
@@ -314,7 +502,17 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
                       ].join(' ')}
                       key={item.id}
                     >
-                      <Avatar image={item.actorAvatarImage} label={item.actorAvatar} size="sm" />
+                      <button
+                        aria-label={`Открыть профиль ${item.actorName}`}
+                        className="self-start rounded-sqd-sm text-left transition hover:opacity-85"
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          showProfile(item.actorId);
+                        }}
+                        type="button"
+                      >
+                        <Avatar image={item.actorAvatarImage} label={item.actorAvatar} size="sm" />
+                      </button>
                       <div className="min-w-0">
                         <p className="leading-5">{item.text}</p>
                         <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted">{item.time}</p>
@@ -343,9 +541,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           />
           {settingsOpen ? (
             <Panel className="absolute right-0 top-12 z-[60] w-72 p-3">
-              <p className="mb-3 font-ui text-sm font-bold text-text">Настройки интерфейса</p>
+              <p className="mb-3 font-ui text-sm font-bold text-text">Настройки</p>
               <label className="flex items-center justify-between gap-3 rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
-                Компактная тема
+                Компактный режим
                 <input
                   checked={compactMode}
                   className="h-4 w-4 accent-[var(--color-accent)]"
@@ -353,17 +551,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
                   type="checkbox"
                 />
               </label>
-              <div className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-muted">
-                <Check size={14} strokeWidth={1.8} />
-                Тема сохранена локально
-              </div>
             </Panel>
           ) : null}
         </div>
 
         <IconButton icon={LogOut} label="Выйти" onClick={onSignOut} />
 
-        <button aria-label="Открыть профиль" className="hidden sm:block" onClick={showProfile} type="button">
+        <button aria-label="Открыть профиль" className="hidden sm:block" onClick={showOwnProfile} type="button">
           <Avatar image={displayedUser.avatarImage} label={displayedUser.avatar} active />
         </button>
       </header>
@@ -381,13 +575,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
       {displayedBackendError ? (
         <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-warning/45 bg-warning/10 px-3 py-2 font-ui text-sm text-warning">
-          Supabase: {displayedBackendError}
+          {displayedBackendError}
         </div>
       ) : null}
 
       {!backendReady ? (
         <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-border bg-surface/80 px-3 py-2 font-ui text-sm text-text-soft">
-          Загружаем данные из Supabase...
+          Загружаем данные...
         </div>
       ) : null}
 
@@ -396,24 +590,40 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           <ProfilePanel
             activeView={activeView}
             currentUser={displayedUser}
-            onNavigate={setActiveView}
-            onOpenProfile={showProfile}
+            onNavigate={navigateView}
+            onOpenProfile={showOwnProfile}
             onSelectTopic={selectTopic}
             trends={hashtagTrends}
           />
         </aside>
 
         {activeView === 'messages' ? (
-          <MessagesPanel currentUser={displayedUser} expanded people={people} />
+          <MessagesPanel
+            currentUser={displayedUser}
+            expanded
+            onOpenProfile={showProfile}
+            onPreferredConversationHandled={clearPreferredConversation}
+            people={people}
+            preferredConversationId={preferredConversationId}
+          />
         ) : activeView === 'profile' ? (
           <ProfilePage
             currentUser={displayedUser}
+            key={selectedProfile?.id || selectedProfileKey}
+            missing={profileMissing}
             onCommentPost={addComment}
+            onDeleteComment={deleteComment}
             onDeletePost={deletePost}
+            onMessage={startConversation}
+            onOpenProfile={showProfile}
             onTogglePost={togglePost}
+            onUpdateComment={updateComment}
+            onUpdatePost={updatePost}
             onUpdateProfile={updateProfile}
             people={people}
             posts={posts}
+            profileUser={selectedProfile}
+            requestedProfileKey={selectedProfileKey}
           />
         ) : (
           <Feed
@@ -423,9 +633,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
             currentUser={displayedUser}
             onAddPost={addPost}
             onCommentPost={addComment}
+            onDeleteComment={deleteComment}
             onDeletePost={deletePost}
+            onOpenProfile={showProfile}
             onSelectAuthor={selectAuthor}
             onTogglePost={togglePost}
+            onUpdateComment={updateComment}
+            onUpdatePost={updatePost}
             posts={visiblePosts}
             query={query}
           />
@@ -446,7 +660,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
                   : 'border-border bg-surface-2/70 text-text-soft',
               ].join(' ')}
               key={item.target}
-              onClick={() => setActiveView(item.target)}
+              onClick={() => navigateView(item.target)}
               type="button"
             >
               <Icon size={17} strokeWidth={1.8} />

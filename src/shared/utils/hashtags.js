@@ -13,17 +13,6 @@ export function extractHashtags(text) {
   return Array.from(text.matchAll(hashtagPattern), (match) => normalizeHashtag(match[2])).filter(Boolean);
 }
 
-export function parseHashtagInput(input) {
-  return input
-    .split(/[\s,]+/)
-    .map(normalizeHashtag)
-    .filter(Boolean);
-}
-
-export function collectHashtags({ input = '', text = '' }) {
-  return Array.from(new Set([...extractHashtags(text), ...parseHashtagInput(input)]));
-}
-
 export function buildHashtagTrends(posts) {
   const stats = new Map();
 
@@ -47,7 +36,7 @@ export function buildHashtagTrends(posts) {
   return Array.from(stats.values())
     .sort((first, second) => second.posts - first.posts || second.engagement - first.engagement || first.tag.localeCompare(second.tag))
     .map((trend) => ({
-      count: `${trend.posts} ${trend.posts === 1 ? 'пост' : 'постов'} / ${trend.engagement} реакций`,
+      count: `${trend.posts} ${trend.posts === 1 ? 'пост' : 'постов'}`,
       label: `#${trend.tag}`,
       tag: trend.tag,
     }));

@@ -22,6 +22,7 @@ drop policy if exists "posts_update_public" on public.posts;
 drop policy if exists "posts_delete_public" on public.posts;
 drop policy if exists "comments_select_public" on public.comments;
 drop policy if exists "comments_insert_public" on public.comments;
+drop policy if exists "comments_update_public" on public.comments;
 drop policy if exists "comments_delete_public" on public.comments;
 drop policy if exists "post_reactions_select_public" on public.post_reactions;
 drop policy if exists "post_reactions_insert_public" on public.post_reactions;
@@ -91,6 +92,14 @@ create policy "comments_insert_own"
 on public.comments
 for insert
 to authenticated
+with check (author_id = auth.uid()::text);
+
+drop policy if exists "comments_update_own" on public.comments;
+create policy "comments_update_own"
+on public.comments
+for update
+to authenticated
+using (author_id = auth.uid()::text)
 with check (author_id = auth.uid()::text);
 
 drop policy if exists "comments_delete_own" on public.comments;

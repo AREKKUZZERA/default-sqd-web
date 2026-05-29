@@ -23,7 +23,8 @@ create table if not exists public.direct_messages (
   conversation_id uuid not null references public.direct_conversations(id) on delete cascade,
   sender_id text not null references public.profiles(id) on delete cascade,
   text text not null check (char_length(trim(text)) > 0 and char_length(text) <= 1000),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.notifications (
@@ -74,6 +75,7 @@ drop policy if exists "direct_conversation_members_insert_member_or_new" on publ
 drop policy if exists "direct_conversation_members_update_own" on public.direct_conversation_members;
 drop policy if exists "direct_messages_select_member" on public.direct_messages;
 drop policy if exists "direct_messages_insert_member" on public.direct_messages;
+drop policy if exists "direct_messages_update_own" on public.direct_messages;
 drop policy if exists "direct_messages_delete_own" on public.direct_messages;
 drop policy if exists "notifications_select_own" on public.notifications;
 drop policy if exists "notifications_update_own" on public.notifications;
@@ -128,11 +130,29 @@ with check (
   and public.is_conversation_member(conversation_id, auth.uid()::text)
 );
 
+create policy "direct_messages_update_own"
+on public.direct_messages
+for update
+to authenticated
+using (
+  sender_id = auth.uid()::text
+  and public.is_conversation_member(conversation_id, auth.uid()::text)
+)
+with check (
+  sender_id = auth.uid()::text
+  and public.is_conversation_member(conversation_id, auth.uid()::text)
+);
+
 create policy "direct_messages_delete_own"
 on public.direct_messages
 for delete
 to authenticated
 using (sender_id = auth.uid()::text);
+
+drop trigger if exists direct_messages_set_updated_at on public.direct_messages;
+create trigger direct_messages_set_updated_at
+before update on public.direct_messages
+for each row execute function public.set_updated_at();
 
 
 drop policy if exists "post_reactions_update_own" on public.post_reactions;

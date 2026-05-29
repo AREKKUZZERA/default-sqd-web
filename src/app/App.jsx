@@ -90,7 +90,7 @@ export default function App() {
   if (!isSupabaseConfigured) {
     return (
       <AuthScreen
-        error="Supabase не настроен. Добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в GitHub Pages environment."
+        error="Вход временно недоступен. Сообщите администратору проекта."
         loading={false}
         onSignIn={() => {}}
         supabaseReady={false}

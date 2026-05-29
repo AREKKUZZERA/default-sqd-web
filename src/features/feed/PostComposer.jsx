@@ -1,28 +1,33 @@
-import { Hash, Image, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { useState } from 'react';
-import { collectHashtags } from '../../shared/utils/hashtags.js';
+import { extractHashtags } from '../../shared/utils/hashtags.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
-import IconButton from '../../shared/ui/IconButton.jsx';
 
 export default function PostComposer({ currentUser, onPost }) {
   const [draft, setDraft] = useState('');
-  const [hashtagDraft, setHashtagDraft] = useState('');
-  const [mediaAttached, setMediaAttached] = useState(false);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
   const remaining = 280 - draft.length;
-  const hashtags = collectHashtags({ input: hashtagDraft, text: draft });
+  const hashtags = extractHashtags(draft);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text) {
+    if (!text || sending) {
       return;
     }
 
-    onPost({ hashtags, mediaAttached, text });
-    setDraft('');
-    setHashtagDraft('');
-    setMediaAttached(false);
+    try {
+      setSending(true);
+      setError('');
+      await onPost({ hashtags, text });
+      setDraft('');
+    } catch (postError) {
+      setError(postError.message);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -37,15 +42,6 @@ export default function PostComposer({ currentUser, onPost }) {
             placeholder="Напишите новый пост"
             value={draft}
           />
-          <label className="mt-2 flex items-center gap-2 rounded-sqd-sm border border-border bg-bg-soft/75 px-3 py-2 text-text-soft transition-within focus-within:border-border-strong">
-            <Hash size={15} strokeWidth={1.8} />
-            <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
-              onChange={(event) => setHashtagDraft(event.target.value)}
-              placeholder="Отдельные хештеги: design, #team"
-              value={hashtagDraft}
-            />
-          </label>
           {hashtags.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {hashtags.map((tag) => (
@@ -56,25 +52,22 @@ export default function PostComposer({ currentUser, onPost }) {
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              <IconButton active={mediaAttached} icon={Image} label="Медиа" onClick={() => setMediaAttached((value) => !value)}>
-                {mediaAttached ? 'медиа' : null}
-              </IconButton>
-            </div>
+            <p className="text-xs text-muted">Хештеги можно добавить прямо в текст: #team</p>
             <div className="flex items-center gap-3">
               <span className={['font-mono text-[0.65rem]', remaining < 30 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {remaining}
               </span>
               <button
                 className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition hover:bg-surface-3 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || sending}
                 type="submit"
               >
                 <Send size={15} strokeWidth={1.8} />
-                опубликовать
+                {sending ? 'публикуем' : 'опубликовать'}
               </button>
             </div>
           </div>
+          {error ? <p className="mt-3 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{error}</p> : null}
         </div>
       </div>
     </form>

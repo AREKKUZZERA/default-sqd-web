@@ -1,11 +1,13 @@
-import { MessageSquarePlus, Search, SendHorizonal } from 'lucide-react';
+import { MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createDirectConversation,
+  deleteDirectMessage,
   fetchConversations,
   fetchMessages,
   markConversationRead,
   sendDirectMessage,
+  updateDirectMessage,
 } from '../../shared/api/socialApi.js';
 import { supabase } from '../../shared/lib/supabase.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
@@ -21,18 +23,32 @@ function shouldStickToBottom(element) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
 }
 
-export default function MessagesPanel({ currentUser, expanded = false, people = [] }) {
+export default function MessagesPanel({
+  currentUser,
+  expanded = false,
+  onOpenProfile,
+  onPreferredConversationHandled,
+  people = [],
+  preferredConversationId = null,
+}) {
   const [activeId, setActiveId] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [draft, setDraft] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingMessageDraft, setEditingMessageDraft] = useState('');
+  const [hasMoreByConversation, setHasMoreByConversation] = useState({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [messagesByConversation, setMessagesByConversation] = useState({});
   const [query, setQuery] = useState('');
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [messageActionError, setMessageActionError] = useState('');
+  const [sendError, setSendError] = useState('');
   const currentUserId = currentUser?.id;
   const activeIdRef = useRef(activeId);
+  const messageInputRef = useRef(null);
   const reloadTimerRef = useRef(null);
   const messagesListRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
@@ -61,14 +77,22 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
     try {
       setError('');
       const items = await fetchConversations(currentUserId);
+      const preferredExists = preferredConversationId && items.some((item) => item.id === preferredConversationId);
       setConversations(items);
       setActiveId((currentActiveId) => {
+        if (preferredExists) {
+          return preferredConversationId;
+        }
+
         if (keepActive && currentActiveId && items.some((item) => item.id === currentActiveId)) {
           return currentActiveId;
         }
 
         return items[0]?.id || null;
       });
+      if (preferredExists) {
+        onPreferredConversationHandled?.();
+      }
       return items;
     } catch (loadError) {
       setError(loadError.message);
@@ -76,17 +100,21 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
     } finally {
       setLoading(false);
     }
-  }, [currentUserId]);
+  }, [currentUserId, onPreferredConversationHandled, preferredConversationId]);
 
-  const loadMessages = useCallback(async (conversationId, { markRead = false, scroll = false } = {}) => {
+  const loadMessages = useCallback(async (conversationId, { appendOlder = false, before, markRead = false, scroll = false } = {}) => {
     if (!conversationId) {
       return [];
     }
 
     try {
       setError('');
-      const messages = await fetchMessages(conversationId);
-      setMessagesByConversation((items) => ({ ...items, [conversationId]: messages }));
+      const result = await fetchMessages(conversationId, { before });
+      setHasMoreByConversation((items) => ({ ...items, [conversationId]: result.hasMore }));
+      setMessagesByConversation((items) => ({
+        ...items,
+        [conversationId]: appendOlder ? [...result.messages, ...(items[conversationId] ?? [])] : result.messages,
+      }));
 
       if (markRead) {
         await markConversationRead({ conversationId, currentUserId: currentUserId });
@@ -96,7 +124,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
         scrollMessagesToBottom('auto');
       }
 
-      return messages;
+      return result.messages;
     } catch (loadError) {
       setError(loadError.message);
       return [];
@@ -175,6 +203,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
   const activeConversation = conversations.find((conversation) => conversation.id === activeId) ?? conversations[0];
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
   const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
+  const hasOlderMessages = activeConversation ? Boolean(hasMoreByConversation[activeConversation.id]) : false;
 
   useEffect(() => {
     if (shouldAutoScrollRef.current) {
@@ -208,20 +237,138 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       return;
     }
 
+    const temporaryId = `pending-message-${Date.now()}`;
+    const temporaryMessage = {
+      id: temporaryId,
+      authorId: currentUserId,
+      body: text,
+      pending: true,
+      time: 'отправляется',
+    };
+    const previousMessages = messagesByConversation[activeConversation.id] ?? [];
+
     try {
       setSending(true);
       setError('');
+      setSendError('');
+      setMessageActionError('');
       shouldAutoScrollRef.current = true;
-      const messages = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUserId, text });
-      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: messages }));
       setDraft('');
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: [...previousMessages, temporaryMessage] }));
+      const result = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUserId, text });
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
+      setHasMoreByConversation((items) => ({ ...items, [activeConversation.id]: result.hasMore }));
       scrollMessagesToBottom('smooth');
       await loadConversations({ keepActive: true });
+      window.requestAnimationFrame(() => messageInputRef.current?.focus());
     } catch (sendError) {
-      setError(sendError.message);
+      setSendError(sendError.message);
+      setMessagesByConversation((items) => ({
+        ...items,
+        [activeConversation.id]: [
+          ...previousMessages,
+          {
+            ...temporaryMessage,
+            failed: true,
+            pending: false,
+            time: 'не отправлено',
+          },
+        ],
+      }));
     } finally {
       setSending(false);
     }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversation || loadingOlder || activeMessages.length === 0) {
+      return;
+    }
+
+    try {
+      setLoadingOlder(true);
+      setMessageActionError('');
+      await loadMessages(activeConversation.id, {
+        appendOlder: true,
+        before: activeMessages[0].createdAt,
+      });
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
+
+  const startEditMessage = (message) => {
+    setEditingMessageId(message.id);
+    setEditingMessageDraft(message.body);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingMessageDraft('');
+  };
+
+  const saveMessageEdit = async (messageId) => {
+    const text = editingMessageDraft.trim();
+
+    if (!text || !activeConversation) {
+      return;
+    }
+
+    const previousMessages = messagesByConversation[activeConversation.id] ?? [];
+
+    try {
+      setMessageActionError('');
+      setMessagesByConversation((items) => ({
+        ...items,
+        [activeConversation.id]: previousMessages.map((message) => (message.id === messageId ? { ...message, body: text, edited: true, pending: true } : message)),
+      }));
+      const result = await updateDirectMessage({ conversationId: activeConversation.id, currentUserId, messageId, text });
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
+      setHasMoreByConversation((items) => ({ ...items, [activeConversation.id]: result.hasMore }));
+      cancelEditMessage();
+      await loadConversations({ keepActive: true });
+    } catch (updateError) {
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: previousMessages }));
+      setMessageActionError(updateError.message);
+    }
+  };
+
+  const removeMessage = async (messageId) => {
+    if (!activeConversation) {
+      return;
+    }
+
+    const confirmed = window.confirm('Удалить сообщение?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    const previousMessages = messagesByConversation[activeConversation.id] ?? [];
+
+    try {
+      setMessageActionError('');
+      setMessagesByConversation((items) => ({
+        ...items,
+        [activeConversation.id]: previousMessages.filter((message) => message.id !== messageId),
+      }));
+      const result = await deleteDirectMessage({ conversationId: activeConversation.id, currentUserId, messageId });
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
+      setHasMoreByConversation((items) => ({ ...items, [activeConversation.id]: result.hasMore }));
+      await loadConversations({ keepActive: true });
+    } catch (deleteError) {
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: previousMessages }));
+      setMessageActionError(deleteError.message);
+    }
+  };
+
+  const handleComposerKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
   };
 
   return (
@@ -229,7 +376,6 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       {expanded ? (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="y2k-label mb-2">direct_messages / realtime</span>
             <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Сообщения</h1>
           </div>
           <button
@@ -336,9 +482,22 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
             {activeParticipant ? (
               <>
                 <div className="mb-4 flex items-center gap-3 rounded-sqd-sm border border-border bg-surface-2/60 p-3">
-                  <Avatar active={activeParticipant.status === 'online'} image={activeParticipant.avatarImage} label={activeParticipant.avatar} size="sm" />
+                  <button
+                    aria-label={`Открыть профиль ${activeParticipant.name}`}
+                    className="rounded-sqd-sm text-left transition hover:opacity-85"
+                    onClick={() => onOpenProfile?.(activeParticipant.id)}
+                    type="button"
+                  >
+                    <Avatar active={activeParticipant.status === 'online'} image={activeParticipant.avatarImage} label={activeParticipant.avatar} size="sm" />
+                  </button>
                   <div className="min-w-0">
-                    <p className="truncate font-ui text-base font-bold text-text">{activeParticipant.name}</p>
+                    <button
+                      className="max-w-full truncate font-ui text-base font-bold text-text transition hover:text-text-soft"
+                      onClick={() => onOpenProfile?.(activeParticipant.id)}
+                      type="button"
+                    >
+                      {activeParticipant.name}
+                    </button>
                     <p className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">
                       @{activeParticipant.userId} / {activeParticipant.status}
                     </p>
@@ -353,19 +512,86 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                   ref={messagesListRef}
                 >
                   <div className="grid min-h-full content-end gap-2 py-1">
+                    {hasOlderMessages ? (
+                      <button
+                        className="justify-self-center rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text-soft transition hover:border-border-strong hover:text-text disabled:opacity-50"
+                        disabled={loadingOlder}
+                        onClick={loadOlderMessages}
+                        type="button"
+                      >
+                        {loadingOlder ? 'Загружаем...' : 'Показать старые сообщения'}
+                      </button>
+                    ) : null}
                     {activeMessages.length > 0 ? (
                       activeMessages.map((message) => {
                         const own = message.authorId === currentUserId;
+                        const editing = editingMessageId === message.id;
                         return (
                           <div
                             className={[
-                              'message-bubble max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                              'message-bubble group max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
                               own ? 'message-bubble--own ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
+                              message.failed ? 'border-warning/50 bg-warning/10 text-warning' : '',
                             ].join(' ')}
                             key={message.id}
                           >
-                            <p>{message.body}</p>
-                            <p className="mt-1 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">{message.time}</p>
+                            {editing ? (
+                              <div className="grid gap-2">
+                                <textarea
+                                  className="min-h-20 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
+                                  maxLength={1000}
+                                  onChange={(event) => setEditingMessageDraft(event.target.value)}
+                                  value={editingMessageDraft}
+                                />
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    className="rounded-sqd-xs border border-border-strong bg-accent-soft px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
+                                    disabled={!editingMessageDraft.trim()}
+                                    onClick={() => saveMessageEdit(message.id)}
+                                    type="button"
+                                  >
+                                    сохранить
+                                  </button>
+                                  <button
+                                    className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-1.5 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
+                                    onClick={cancelEditMessage}
+                                    type="button"
+                                  >
+                                    отменить
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap">{message.body}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <p className="font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">
+                                    {message.pending ? 'отправляется' : message.time}
+                                    {message.edited && !message.pending ? ' / изменено' : ''}
+                                  </p>
+                                  {own && !message.pending && !message.failed ? (
+                                    <span className="ml-auto inline-flex gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
+                                      <button
+                                        aria-label="Редактировать сообщение"
+                                        className="grid size-6 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text"
+                                        onClick={() => startEditMessage(message)}
+                                        type="button"
+                                      >
+                                        <Pencil size={12} strokeWidth={1.8} />
+                                      </button>
+                                      <button
+                                        aria-label="Удалить сообщение"
+                                        className="grid size-6 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning"
+                                        onClick={() => removeMessage(message.id)}
+                                        type="button"
+                                      >
+                                        <Trash2 size={12} strokeWidth={1.8} />
+                                      </button>
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })
@@ -377,16 +603,33 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                   </div>
                 </div>
 
-                <form className="mt-4 flex gap-2" onSubmit={handleSend}>
-                  <input
-                    className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
-                    disabled={sending}
-                    maxLength={1000}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Сообщение"
-                    value={draft}
-                  />
-                  <IconButton active={Boolean(draft.trim()) && !sending} disabled={sending} icon={SendHorizonal} label="Отправить" type="submit" />
+                <form className="mt-4 grid gap-2" onSubmit={handleSend}>
+                  <div className="flex gap-2">
+                    <textarea
+                      className="max-h-36 min-h-10 min-w-0 flex-1 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none placeholder:text-muted focus:border-border-strong disabled:opacity-60"
+                      disabled={sending}
+                      maxLength={1000}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={handleComposerKeyDown}
+                      placeholder="Сообщение"
+                      ref={messageInputRef}
+                      rows={1}
+                      value={draft}
+                    />
+                    <IconButton active={Boolean(draft.trim()) && !sending} disabled={sending} icon={SendHorizonal} label="Отправить" type="submit">
+                      {sending ? '...' : null}
+                    </IconButton>
+                  </div>
+                  {sendError ? (
+                    <p className="rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+                      Не удалось отправить: {sendError}
+                    </p>
+                  ) : null}
+                  {messageActionError ? (
+                    <p className="rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+                      {messageActionError}
+                    </p>
+                  ) : null}
                 </form>
               </>
             ) : (
