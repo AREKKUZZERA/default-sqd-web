@@ -234,6 +234,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   }, [displayedUser, getProfileWithStats, people, selectedProfileKey]);
 
   const activeConversationPathId = activeView === 'messages' ? preferredConversationId : null;
+  const isMessageConversationOpen = activeView === 'messages' && Boolean(preferredConversationId);
   const profileMissing = activeView === 'profile' && backendReady && !selectedProfile;
 
   const authorFilters = useMemo(
@@ -474,7 +475,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     }
 
     if (target === 'messages') {
-      showMessages(preferredConversationId);
+      showMessages(null);
       return;
     }
 
@@ -550,6 +551,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       className={[
         'poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-5 sm:py-5 lg:px-8',
         activeView === 'messages' ? 'poster-app--messages' : '',
+        isMessageConversationOpen ? 'poster-app--chat-open' : '',
       ].join(' ')}
       data-active-view={activeView}
       data-density={compactMode ? 'compact' : 'default'}
@@ -757,7 +759,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
       <nav className={[
         'fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
-        activeView === 'messages' ? 'hidden' : '',
+        isMessageConversationOpen ? 'hidden' : '',
       ].join(' ')} aria-label="Мобильная навигация">
         {mobileNavigation.map((item) => {
           const Icon = item.icon;

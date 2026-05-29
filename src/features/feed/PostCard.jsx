@@ -240,9 +240,6 @@ export default function PostCard({
             ))}
             {isOwner ? (
               <span className="ml-auto inline-flex flex-wrap justify-end gap-1">
-                <span className="owner-chip inline-flex h-8 items-center rounded-sqd-xs border px-2 font-mono text-[0.56rem] font-bold uppercase tracking-[0.08em]">
-                  твоя запись
-                </span>
                 <button
                   className="inline-flex h-8 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50"
                   disabled={busyDelete}

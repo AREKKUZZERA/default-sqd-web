@@ -61,17 +61,40 @@ export default function MessagesPanel({
 
   useEffect(() => {
     preferredConversationIdRef.current = preferredConversationId;
+
+    if (preferredConversationId !== null) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setActiveId(null);
+      setDraft('');
+      setEditingMessageId(null);
+      setEditingMessageDraft('');
+      setMessageActionError('');
+      setSendError('');
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [preferredConversationId]);
 
   const scrollMessagesToBottom = useCallback((behavior = 'smooth') => {
-    const element = messagesListRef.current;
-
-    if (!element) {
-      return;
-    }
-
     window.requestAnimationFrame(() => {
+      const element = messagesListRef.current;
+
+      if (!element) {
+        return;
+      }
+
       element.scrollTo({ top: element.scrollHeight, behavior });
+
+      window.requestAnimationFrame(() => {
+        const latestElement = messagesListRef.current;
+
+        if (latestElement) {
+          latestElement.scrollTo({ top: latestElement.scrollHeight, behavior });
+        }
+      });
     });
   }, []);
 
@@ -103,6 +126,8 @@ export default function MessagesPanel({
       });
       if (preferredExists) {
         onPreferredConversationHandled?.();
+      } else if (routeConversationId) {
+        onConversationPathChange?.(null);
       }
       return items;
     } catch (loadError) {
@@ -111,7 +136,7 @@ export default function MessagesPanel({
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, onPreferredConversationHandled]);
+  }, [currentUserId, onConversationPathChange, onPreferredConversationHandled]);
 
   const loadMessages = useCallback(async (conversationId, { appendOlder = false, before, markRead = false, scroll = false } = {}) => {
     if (!conversationId) {
@@ -133,6 +158,7 @@ export default function MessagesPanel({
 
       if (scroll) {
         scrollMessagesToBottom('auto');
+        window.setTimeout(() => scrollMessagesToBottom('auto'), 80);
       }
 
       return result.messages;
@@ -226,9 +252,25 @@ export default function MessagesPanel({
     }
   }, [activeMessages.length, scrollMessagesToBottom]);
 
+  const resetComposerState = () => {
+    setDraft('');
+    setEditingMessageId(null);
+    setEditingMessageDraft('');
+    setMessageActionError('');
+    setSendError('');
+  };
+
+  const closeActiveConversation = () => {
+    setActiveId(null);
+    resetComposerState();
+    onConversationPathChange?.(null);
+  };
+
   const createChat = async (person) => {
     try {
       setError('');
+      resetComposerState();
+      shouldAutoScrollRef.current = true;
       const id = await createDirectConversation(currentUserId, person.id);
       setActiveId(id);
       onConversationPathChange?.(id);
@@ -241,8 +283,11 @@ export default function MessagesPanel({
   };
 
   const selectConversation = (conversationId) => {
+    resetComposerState();
+    shouldAutoScrollRef.current = true;
     setActiveId(conversationId);
     onConversationPathChange?.(conversationId);
+    setDirectoryOpen(false);
   };
 
   const handleSend = async (event) => {
@@ -390,7 +435,7 @@ export default function MessagesPanel({
   return (
     <section className="messages-section min-w-0">
       {expanded ? (
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div className="messages-page-head mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Сообщения</h1>
           </div>
@@ -405,7 +450,7 @@ export default function MessagesPanel({
         </div>
       ) : null}
 
-      <Panel className={['messages-panel overflow-hidden', expanded ? 'min-h-[620px]' : ''].join(' ')}>
+      <Panel className={['messages-panel overflow-hidden', expanded ? 'messages-panel--expanded lg:min-h-[620px]' : ''].join(' ')}>
         <div className="messages-sidebar-header border-b border-border p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-ui text-lg font-bold text-text">Диалоги</h2>
@@ -507,10 +552,7 @@ export default function MessagesPanel({
                   <button
                     aria-label="Назад к диалогам"
                     className="messages-back-button grid size-10 shrink-0 place-items-center rounded-full border border-border bg-surface-2/80 text-text-soft shadow-[0_10px_28px_rgba(0,0,0,0.22)] transition hover:border-border-strong hover:bg-accent-soft hover:text-text sm:hidden"
-                    onClick={() => {
-                      setActiveId(null);
-                      onConversationPathChange?.(null);
-                    }}
+                    onClick={closeActiveConversation}
                     type="button"
                   >
                     <ArrowLeft size={19} strokeWidth={2} />
