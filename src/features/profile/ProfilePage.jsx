@@ -452,7 +452,8 @@ export default function ProfilePage({
 
             {isOwnProfile ? (
               <button
-                className="sqd-button inline-flex shrink-0 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-[0.66rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+                aria-label={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
+                className="sqd-button grid size-10 shrink-0 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text sm:size-9"
                 onClick={() => {
                   if (editing) {
                     cancelProfileEdit();
@@ -464,10 +465,10 @@ export default function ProfilePage({
                   setUploadError('');
                   setEditing(true);
                 }}
+                title={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
                 type="button"
               >
                 {editing ? <X size={15} strokeWidth={1.8} /> : <Pencil size={15} strokeWidth={1.8} />}
-                {editing ? 'отмена' : 'редактировать'}
               </button>
             ) : (
               <button

@@ -1,6 +1,8 @@
 -- UI helpers for the moderation dashboard.
 -- Apply after 20260529_moderation_and_antispam.sql.
 
+drop function if exists public.list_moderation_reports();
+
 create or replace function public.list_moderation_reports()
 returns table (
   id uuid,
@@ -8,9 +10,9 @@ returns table (
   reporter_name text,
   target_id text,
   target_name text,
-  post_id bigint,
-  comment_id bigint,
-  message_id bigint,
+  post_id text,
+  comment_id text,
+  message_id text,
   reason text,
   status text,
   created_at timestamptz
@@ -26,9 +28,9 @@ as $$
     reporter.name as reporter_name,
     r.target_id,
     target.name as target_name,
-    r.post_id,
-    r.comment_id,
-    r.message_id,
+    r.post_id::text,
+    r.comment_id::text,
+    r.message_id::text,
     r.reason,
     r.status,
     r.created_at

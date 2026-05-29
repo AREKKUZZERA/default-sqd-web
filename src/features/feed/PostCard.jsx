@@ -264,36 +264,39 @@ export default function PostCard({
                 {isOwner ? (
                   <>
                     <button
-                      className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:min-h-8"
+                      aria-label="Редактировать пост"
+                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/60 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
                       disabled={postBusy}
                       onClick={() => {
                         setEditingPost(true);
                         setPostDraft(post.text);
                       }}
+                      title="Редактировать пост"
                       type="button"
                     >
                       <Pencil size={13} strokeWidth={1.8} />
-                      изменить
                     </button>
                     <button
-                      className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:min-h-8"
+                      aria-label="Удалить пост"
+                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/60 text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:size-8"
                       disabled={postBusy}
                       onClick={requestDeletePost}
+                      title="Удалить пост"
                       type="button"
                     >
                       <Trash2 size={13} strokeWidth={1.8} />
-                      удалить
                     </button>
                   </>
                 ) : null}
                 {!isOwner ? (
                   <button
-                    className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning sm:min-h-8"
+                    aria-label="Пожаловаться на пост"
+                    className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/60 text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning sm:size-8"
                     onClick={() => onReport?.({ postId: post.id, targetLabel: `пост ${post.author}`, targetUserId: post.ownerId })}
+                    title="Пожаловаться на пост"
                     type="button"
                   >
                     <Flag size={13} strokeWidth={1.8} />
-                    жалоба
                   </button>
                 ) : null}
                 {canModerate && !isOwner ? (
