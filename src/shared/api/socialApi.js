@@ -128,6 +128,7 @@ export const mapProfile = (profile = {}, mediaMap = new Map()) => {
     bannerImage: resolveMediaUrl(bannerImagePath, mediaMap),
     bannerImagePath,
     status: profile.status || 'online',
+    lastSeenAt: profile.last_seen_at || null,
     bio: profile.bio || '',
     stats: [],
   };
@@ -293,7 +294,7 @@ export async function fetchProfiles() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, user_id, name, role, avatar, avatar_image, banner_image, status, bio')
+    .select('id, user_id, name, role, avatar, avatar_image, banner_image, status, last_seen_at, bio')
     .order('name', { ascending: true });
 
   if (error) {
@@ -739,6 +740,7 @@ export async function fetchConversations(currentUserId) {
           avatar_image,
           banner_image,
           status,
+          last_seen_at,
           bio
         )
       ),

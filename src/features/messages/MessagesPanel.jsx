@@ -16,7 +16,7 @@ import IconButton from '../../shared/ui/IconButton.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
 function getParticipant(conversation, people) {
-  return conversation.participant || people.find((person) => person.id === conversation.participantId);
+  return people.find((person) => person.id === conversation.participantId) || conversation.participant;
 }
 
 function shouldStickToBottom(element) {
@@ -561,7 +561,7 @@ export default function MessagesPanel({
                     onClick={() => createChat(person)}
                     type="button"
                   >
-                    <Avatar active={person.status === 'online'} image={person.avatarImage} label={person.avatar} size="sm" />
+                    <Avatar active={person.isOnline} image={person.avatarImage} label={person.avatar} size="sm" />
                     <span className="min-w-0">
                       <span className="block font-ui text-sm font-bold text-text">{person.name}</span>
                       <span className="block font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">@{person.userId}</span>
@@ -604,7 +604,7 @@ export default function MessagesPanel({
                     onClick={() => selectConversation(conversation.id)}
                     type="button"
                   >
-                    <Avatar active={participant.status === 'online'} image={participant.avatarImage} label={participant.avatar} size="sm" />
+                    <Avatar active={participant.isOnline} image={participant.avatarImage} label={participant.avatar} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-ui text-sm font-bold text-text">{participant.name}</span>
                       <span className={['block truncate text-xs', activeId === conversation.id ? 'text-text-soft' : 'text-muted'].join(' ')}>
@@ -645,7 +645,7 @@ export default function MessagesPanel({
                     onClick={() => onOpenProfile?.(activeParticipant.id)}
                     type="button"
                   >
-                    <Avatar active={activeParticipant.status === 'online'} image={activeParticipant.avatarImage} label={activeParticipant.avatar} size="sm" />
+                    <Avatar active={activeParticipant.isOnline} image={activeParticipant.avatarImage} label={activeParticipant.avatar} size="sm" />
                   </button>
                   <div className="min-w-0">
                     <button

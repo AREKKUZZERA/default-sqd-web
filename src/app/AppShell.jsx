@@ -21,7 +21,9 @@ import {
   updateProfile as updateRemoteProfile,
   uploadProfileImage as uploadRemoteProfileImage,
 } from '../shared/api/socialApi.js';
+import useOnlinePresence from '../shared/hooks/useOnlinePresence.js';
 import { supabase } from '../shared/lib/supabase.js';
+import { applyPresenceStatus } from '../shared/utils/presence.js';
 import { buildHashtagTrends, extractHashtags } from '../shared/utils/hashtags.js';
 import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
@@ -146,6 +148,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('default-sqd-density') === 'compact');
   const [backendReady, setBackendReady] = useState(false);
   const [backendError, setBackendError] = useState('');
+  const onlineUserIds = useOnlinePresence(currentUser);
 
   const unreadNotifications = notifications.filter((item) => !item.readAt).length;
   const displayedBackendError = backendError || authError;
@@ -257,13 +260,23 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     [posts],
   );
 
+  const peopleWithPresence = useMemo(
+    () => people.map((person) => applyPresenceStatus(person, onlineUserIds)),
+    [onlineUserIds, people],
+  );
+
+  const currentUserWithPresence = useMemo(
+    () => applyPresenceStatus(currentUser, onlineUserIds),
+    [currentUser, onlineUserIds],
+  );
+
   const displayedUser = useMemo(() => {
-    const freshProfile = people.find((person) => person.id === currentUser?.id) || currentUser;
+    const freshProfile = peopleWithPresence.find((person) => person.id === currentUserWithPresence?.id) || currentUserWithPresence;
     return getProfileWithStats(freshProfile);
-  }, [currentUser, getProfileWithStats, people]);
+  }, [currentUserWithPresence, getProfileWithStats, peopleWithPresence]);
 
   const selectedProfile = useMemo(() => {
-    const profile = people.find((person) => person.id === selectedProfileKey || person.userId === selectedProfileKey);
+    const profile = peopleWithPresence.find((person) => person.id === selectedProfileKey || person.userId === selectedProfileKey);
 
     if (profile) {
       return getProfileWithStats(profile);
@@ -274,7 +287,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     }
 
     return null;
-  }, [displayedUser, getProfileWithStats, people, selectedProfileKey]);
+  }, [displayedUser, getProfileWithStats, peopleWithPresence, selectedProfileKey]);
 
   const activeConversationPathId = activeView === 'messages' ? preferredConversationId : null;
   const isMessageConversationOpen = activeView === 'messages' && Boolean(preferredConversationId);
@@ -283,9 +296,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const authorFilters = useMemo(
     () => [
       { label: 'Все', value: 'all', caption: 'все авторы' },
-      ...people.map((person) => ({ label: person.name, value: person.id, caption: `@${person.userId}` })),
+      ...peopleWithPresence.map((person) => ({ label: person.name, value: person.id, caption: `@${person.userId}` })),
     ],
-    [people],
+    [peopleWithPresence],
   );
 
   const visiblePosts = useMemo(() => {
@@ -559,7 +572,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const showProfile = (profileId = currentUser.id) => {
     setPreferredConversationId(null);
     setSelectedPostId(null);
-    const profile = people.find((person) => person.id === profileId || person.userId === profileId);
+    const profile = peopleWithPresence.find((person) => person.id === profileId || person.userId === profileId);
     const isOwnProfile = profileId === currentUser.id || profileId === currentUser.userId;
     const profileKey = profile?.userId || (isOwnProfile ? displayedUser.userId : profileId);
     setSelectedProfileKey(profileKey);
@@ -866,7 +879,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
               onConversationPathChange={handleConversationChange}
               onOpenProfile={showProfile}
               onPreferredConversationHandled={clearPreferredConversation}
-              people={people}
+              people={peopleWithPresence}
               preferredConversationId={activeConversationPathId}
             />
           ) : activeView === 'profile' ? (
@@ -884,7 +897,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
               onUpdatePost={updatePost}
               onUpdateProfile={updateProfile}
               onUploadProfileImage={uploadProfileMedia}
-              people={people}
+              people={peopleWithPresence}
               posts={posts}
               profileUser={selectedProfile}
               requestedProfileKey={selectedProfileKey}

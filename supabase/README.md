@@ -13,6 +13,7 @@ For the current existing project, run these in Supabase Dashboard -> SQL Editor:
 5. `006_release_features.sql` - real notifications, strict direct-message RPC, and notification triggers
 6. `008_editing_and_media_cleanup.sql` - edit timestamps, cleanup and message delete policy refresh
 7. `007_remove_demo_content.sql` - removes legacy mock/demo profiles and their posts/comments/reactions
+8. `009_profile_presence.sql` - last-seen timestamps for real online/offline status
 
 `002_seed.sql` intentionally inserts nothing in release mode. Do not seed demo profiles/posts for production.
 

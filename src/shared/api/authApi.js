@@ -48,6 +48,7 @@ export function mapAuthProfile(profile, user) {
     avatarImage: profile?.avatar_image || '',
     bannerImage: profile?.banner_image || '',
     status: profile?.status || 'online',
+    lastSeenAt: profile?.last_seen_at || null,
     bio: profile?.bio || 'Новый участник закрытого пространства DEFAULT SQUAD.',
     stats: [],
   };

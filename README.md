@@ -38,6 +38,7 @@ Run SQL files in this order:
 5. `supabase/006_release_features.sql`
 6. `supabase/008_editing_and_media_cleanup.sql`
 7. `supabase/007_remove_demo_content.sql`
+8. `supabase/009_profile_presence.sql`
 
 Do not run demo seeds for release. `supabase/002_seed.sql` is intentionally a no-op.
 

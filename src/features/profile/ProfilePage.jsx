@@ -354,7 +354,7 @@ export default function ProfilePage({
         />
         <div className="-mt-10 p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <Avatar active={profileUser.status === 'online'} image={displayedAvatarImage} label={profileUser.avatar} size="lg" />
+            <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" />
             {isOwnProfile ? (
               <button
                 className="sqd-button rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"

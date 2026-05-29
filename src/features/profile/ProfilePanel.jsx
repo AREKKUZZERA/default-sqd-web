@@ -31,7 +31,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
         <div className="-mt-8 p-4">
           <div className="flex items-end justify-between gap-3">
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
-              <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
+              <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
             </button>
             <span className="status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase">
               {currentUser.status || 'online'}
