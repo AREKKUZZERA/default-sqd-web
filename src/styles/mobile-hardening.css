@@ -1,0 +1,60 @@
+/* Mobile hardening for iPhone Safari and small touch screens. Import this from src/styles/index.css. */
+html,
+body,
+#root {
+  min-height: 100%;
+  overscroll-behavior-x: none;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  touch-action: pan-y;
+}
+
+@supports (overflow: clip) {
+  body {
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  .poster-app {
+    min-height: 100dvh;
+  }
+
+  .poster-app--chat-open {
+    height: 100dvh;
+    max-height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  .poster-app--chat-open .messages-scroll {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@supports not (height: 100dvh) {
+  @media (max-width: 640px) {
+    .poster-app,
+    .poster-app--chat-open {
+      min-height: 100vh;
+    }
+
+    .poster-app--chat-open {
+      height: 100vh;
+      max-height: 100vh;
+    }
+  }
+}
