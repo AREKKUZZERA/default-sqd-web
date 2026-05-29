@@ -1,4 +1,4 @@
-import { MessageCircle, Upload, UserCircle } from 'lucide-react';
+import { MessageCircle, Pencil, Upload, UserCircle, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
@@ -319,6 +319,17 @@ export default function ProfilePage({
     }
   };
 
+  const cancelProfileEdit = () => {
+    revokeObjectUrl(cropDraft?.source);
+    Object.values(mediaDraft).forEach((item) => revokeObjectUrl(item?.previewUrl));
+    setDraft(getDraftFromProfile(profileUser));
+    setMediaDraft({});
+    setCropDraft(null);
+    setEditing(false);
+    setFormError('');
+    setUploadError('');
+  };
+
   if (!profileUser && !missing) {
     return (
       <section className="min-w-0">
@@ -353,34 +364,53 @@ export default function ProfilePage({
           style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
         />
         <div className="-mt-10 p-5">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-wrap items-end gap-4">
             <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" />
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
+              <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
+                <span className="role-pill inline-flex items-center gap-2 rounded-sqd-xs border px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em]">
+                  <UserCircle size={14} strokeWidth={1.8} />
+                  {profileUser.role || 'Member'}
+                </span>
+                <span
+                  className={[
+                    'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
+                    profileUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
+                  ].join(' ')}
+                >
+                  {profileUser.status || 'offline'}
+                </span>
+              </div>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
+            </div>
+
             {isOwnProfile ? (
               <button
-                className="sqd-button rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+                className="sqd-button inline-flex shrink-0 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-[0.66rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
                 onClick={() => {
-                  setEditing((value) => {
-                    if (value) {
-                      revokeObjectUrl(cropDraft?.source);
-                      Object.values(mediaDraft).forEach((item) => revokeObjectUrl(item?.previewUrl));
-                      setMediaDraft({});
-                      setCropDraft(null);
-                    } else {
-                      setDraft(getDraftFromProfile(profileUser));
-                    }
+                  if (editing) {
+                    cancelProfileEdit();
+                    return;
+                  }
 
-                    return !value;
-                  });
+                  setDraft(getDraftFromProfile(profileUser));
                   setFormError('');
                   setUploadError('');
+                  setEditing(true);
                 }}
                 type="button"
               >
-                {editing ? 'закрыть' : 'редактировать'}
+                {editing ? <X size={15} strokeWidth={1.8} /> : <Pencil size={15} strokeWidth={1.8} />}
+                {editing ? 'отмена' : 'редактировать'}
               </button>
             ) : (
               <button
-                className="sqd-button inline-flex items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
+                className="sqd-button inline-flex shrink-0 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
                 onClick={() => onMessage?.(profileUser.id)}
                 type="button"
               >
@@ -391,34 +421,11 @@ export default function ProfilePage({
           </div>
 
           {editing ? (
-            <form className="mt-5 grid gap-3 rounded-sqd-sm border border-border bg-bg-soft/75 p-4" onSubmit={saveProfile}>
-              <label className="grid gap-1">
-                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Имя</span>
-                <input
-                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
-                  name="profile-name"
-                  onChange={(event) => setDraft((value) => ({ ...value, name: event.target.value }))}
-                  value={draft.name}
-                />
-              </label>
-              <label className="grid gap-1">
-                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Уникальный ID</span>
-                <input
-                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-sm text-text outline-none focus:border-border-strong"
-                  name="profile-user-id"
-                  onChange={(event) => setDraft((value) => ({ ...value, userId: event.target.value }))}
-                  value={draft.userId}
-                />
-              </label>
-              <label className="grid gap-1">
-                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">О себе</span>
-                <textarea
-                  className="min-h-24 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-6 text-text outline-none focus:border-border-strong"
-                  name="profile-bio"
-                  onChange={(event) => setDraft((value) => ({ ...value, bio: event.target.value }))}
-                  value={draft.bio}
-                />
-              </label>
+            <form className="mt-5 grid gap-4 rounded-sqd-sm border border-border bg-bg-soft/75 p-4" onSubmit={saveProfile}>
+              <div>
+                <p className="font-ui text-base font-bold text-text">Редактирование профиля</p>
+                <p className="mt-1 text-sm text-muted">Изменения применятся после сохранения.</p>
+              </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="grid cursor-pointer gap-1 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft transition hover:border-border-strong hover:bg-surface-3/80">
@@ -450,6 +457,37 @@ export default function ProfilePage({
                   />
                 </label>
               </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1">
+                  <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Имя</span>
+                  <input
+                    className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+                    name="profile-name"
+                    onChange={(event) => setDraft((value) => ({ ...value, name: event.target.value }))}
+                    value={draft.name}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Уникальный ID</span>
+                  <input
+                    className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-sm text-text outline-none focus:border-border-strong"
+                    name="profile-user-id"
+                    onChange={(event) => setDraft((value) => ({ ...value, userId: event.target.value }))}
+                    value={draft.userId}
+                  />
+                </label>
+              </div>
+
+              <label className="grid gap-1">
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">О себе</span>
+                <textarea
+                  className="min-h-24 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-6 text-text outline-none focus:border-border-strong"
+                  name="profile-bio"
+                  onChange={(event) => setDraft((value) => ({ ...value, bio: event.target.value }))}
+                  value={draft.bio}
+                />
+              </label>
 
               {cropDraft ? (
                 <div className="grid gap-3 rounded-sqd-sm border border-border bg-surface-2/70 p-3">
@@ -530,35 +568,24 @@ export default function ProfilePage({
                 </p>
               ) : null}
 
-              <button
-                className="justify-self-start rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={saving}
-                type="submit"
-              >
-                {saving ? 'сохраняем...' : 'сохранить'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={saving}
+                  type="submit"
+                >
+                  {saving ? 'сохраняем...' : 'сохранить'}
+                </button>
+                <button
+                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+                  onClick={cancelProfileEdit}
+                  type="button"
+                >
+                  отмена
+                </button>
+              </div>
             </form>
           ) : null}
-
-          <div className="mt-5">
-            <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
-            <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
-              <span className="role-pill inline-flex items-center gap-2 rounded-sqd-xs border px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em]">
-                <UserCircle size={14} strokeWidth={1.8} />
-                {profileUser.role || 'Member'}
-              </span>
-              <span
-                className={[
-                  'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
-                  profileUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
-                ].join(' ')}
-              >
-                {profileUser.status || 'offline'}
-              </span>
-            </div>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
-          </div>
 
           <div className="mt-5 grid gap-2 sm:grid-cols-3">
             {profileUser.stats.map((stat) => (
