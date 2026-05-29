@@ -19,16 +19,43 @@ const NOTIFICATION_LABELS = {
 const MEDIA_BUCKET = 'avatars';
 const POST_PAGE_SIZE = 20;
 const SIGNED_MEDIA_TTL = 60 * 60;
+const STORAGE_OBJECT_PREFIXES = [
+  `/storage/v1/object/public/${MEDIA_BUCKET}/`,
+  `/storage/v1/object/sign/${MEDIA_BUCKET}/`,
+  `/storage/v1/object/authenticated/${MEDIA_BUCKET}/`,
+  `/storage/v1/object/${MEDIA_BUCKET}/`,
+];
 
 const isRemoteOrInlineImage = (value = '') => /^(?:data:|blob:|https?:\/\/)/i.test(value);
+
+const normalizeProfileMediaPath = (value = '') => {
+  if (!value || !isRemoteOrInlineImage(value)) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    const prefix = STORAGE_OBJECT_PREFIXES.find((item) => url.pathname.startsWith(item));
+
+    if (!prefix) {
+      return value;
+    }
+
+    return decodeURIComponent(url.pathname.slice(prefix.length));
+  } catch {
+    return value;
+  }
+};
 
 const collectProfileMediaPaths = (profiles = []) => {
   const paths = [];
 
   profiles.forEach((profile) => {
     [profile?.avatar_image, profile?.banner_image].forEach((value) => {
-      if (value && !isRemoteOrInlineImage(value)) {
-        paths.push(value);
+      const path = normalizeProfileMediaPath(value);
+
+      if (path && !isRemoteOrInlineImage(path)) {
+        paths.push(path);
       }
     });
   });
@@ -57,15 +84,17 @@ const getSignedMediaMap = async (paths = []) => {
 };
 
 const resolveMediaUrl = (value = '', mediaMap = new Map()) => {
-  if (!value) {
+  const path = normalizeProfileMediaPath(value);
+
+  if (!path) {
     return '';
   }
 
-  if (isRemoteOrInlineImage(value)) {
-    return value;
+  if (isRemoteOrInlineImage(path)) {
+    return path;
   }
 
-  return mediaMap.get(value) || '';
+  return mediaMap.get(path) || '';
 };
 
 const getErrorMessage = (error) => error?.message || 'Supabase request failed';
@@ -114,8 +143,8 @@ const getInitials = (name) =>
 
 export const mapProfile = (profile = {}, mediaMap = new Map()) => {
   const name = profile.name || profile.user_id || 'Squad user';
-  const avatarImagePath = profile.avatar_image || '';
-  const bannerImagePath = profile.banner_image || '';
+  const avatarImagePath = normalizeProfileMediaPath(profile.avatar_image || '');
+  const bannerImagePath = normalizeProfileMediaPath(profile.banner_image || '');
 
   return {
     id: profile.id,

@@ -14,6 +14,7 @@ For the current existing project, run these in Supabase Dashboard -> SQL Editor:
 6. `008_editing_and_media_cleanup.sql` - edit timestamps, cleanup and message delete policy refresh
 7. `007_remove_demo_content.sql` - removes legacy mock/demo profiles and their posts/comments/reactions
 8. `009_profile_presence.sql` - last-seen timestamps for real online/offline status
+9. `010_storage_auth_refresh.sql` - refreshes private avatar/banner Storage policies if uploads hit RLS errors
 
 `002_seed.sql` intentionally inserts nothing in release mode. Do not seed demo profiles/posts for production.
 

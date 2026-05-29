@@ -1,5 +1,5 @@
 import { MessageCircle, Pencil, Upload, UserCircle, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import SectionTitle from '../../shared/ui/SectionTitle.jsx';
@@ -49,6 +49,10 @@ const IMAGE_PRESETS = {
   },
 };
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function canvasToBlob(canvas) {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -87,6 +91,15 @@ function getCropGeometry({ naturalHeight, naturalWidth, offsetX, offsetY, target
     width,
     x: (targetWidth - width) / 2 + (offsetX / 100) * maxOffsetX,
     y: (targetHeight - height) / 2 + (offsetY / 100) * maxOffsetY,
+  };
+}
+
+function getCropOffsetLimits(cropDraft) {
+  const { height, width } = getCropGeometry(cropDraft);
+
+  return {
+    maxOffsetX: Math.max(0, (width - cropDraft.targetWidth) / 2),
+    maxOffsetY: Math.max(0, (height - cropDraft.targetHeight) / 2),
   };
 }
 
@@ -177,6 +190,7 @@ export default function ProfilePage({
   const [cropDraft, setCropDraft] = useState(null);
   const [mediaDraft, setMediaDraft] = useState({});
   const [saving, setSaving] = useState(false);
+  const cropDragRef = useRef(null);
 
   const wallPosts = useMemo(() => {
     if (!profileUser?.id) {
@@ -319,6 +333,53 @@ export default function ProfilePage({
     }
   };
 
+  const startCropDrag = (event) => {
+    if (!cropDraft) {
+      return;
+    }
+
+    const { maxOffsetX, maxOffsetY } = getCropOffsetLimits(cropDraft);
+
+    if (!maxOffsetX && !maxOffsetY) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cropDragRef.current = {
+      maxOffsetX,
+      maxOffsetY,
+      pointerId: event.pointerId,
+      rect: event.currentTarget.getBoundingClientRect(),
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startOffsetX: cropDraft.offsetX,
+      startOffsetY: cropDraft.offsetY,
+    };
+  };
+
+  const moveCropDrag = (event) => {
+    const drag = cropDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const targetDeltaX = ((event.clientX - drag.startClientX) / drag.rect.width) * cropDraft.targetWidth;
+    const targetDeltaY = ((event.clientY - drag.startClientY) / drag.rect.height) * cropDraft.targetHeight;
+
+    setCropDraft((value) => ({
+      ...value,
+      offsetX: drag.maxOffsetX ? clamp(drag.startOffsetX + (targetDeltaX / drag.maxOffsetX) * 100, -100, 100) : 0,
+      offsetY: drag.maxOffsetY ? clamp(drag.startOffsetY + (targetDeltaY / drag.maxOffsetY) * 100, -100, 100) : 0,
+    }));
+  };
+
+  const stopCropDrag = (event) => {
+    if (cropDragRef.current?.pointerId === event.pointerId) {
+      cropDragRef.current = null;
+    }
+  };
+
   const cancelProfileEdit = () => {
     revokeObjectUrl(cropDraft?.source);
     Object.values(mediaDraft).forEach((item) => revokeObjectUrl(item?.previewUrl));
@@ -360,7 +421,7 @@ export default function ProfilePage({
     <section className="min-w-0">
       <Panel className="mb-4 overflow-hidden">
         <div
-          className="profile-hero-band poster-band h-36 border-b border-border bg-cover bg-center"
+          className="profile-hero-band poster-band aspect-[3/1] border-b border-border bg-cover bg-center"
           style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
         />
         <div className="-mt-10 p-5">
@@ -495,7 +556,7 @@ export default function ProfilePage({
                     <div>
                       <p className="font-ui text-sm font-bold text-text">Кадрирование: {cropDraft.label}</p>
                       <p className="mt-1 text-xs text-muted">
-                        Итоговый размер: {cropDraft.targetWidth}x{cropDraft.targetHeight}, WebP.
+                        Перетащите изображение, затем при необходимости уточните масштаб. Итог: {cropDraft.targetWidth}x{cropDraft.targetHeight}, WebP.
                       </p>
                     </div>
                     <button
@@ -508,11 +569,17 @@ export default function ProfilePage({
                   </div>
 
                   <div
-                    className="relative overflow-hidden rounded-sqd-sm border border-border bg-bg-soft"
+                    className="relative touch-none overflow-hidden rounded-sqd-sm border border-border bg-bg-soft"
+                    onPointerCancel={stopCropDrag}
+                    onPointerDown={startCropDrag}
+                    onPointerMove={moveCropDrag}
+                    onPointerUp={stopCropDrag}
                     style={{ aspectRatio: `${cropDraft.targetWidth} / ${cropDraft.targetHeight}` }}
                   >
                     <img
                       alt=""
+                      className="select-none"
+                      draggable="false"
                       src={cropDraft.source}
                       style={getCropPreviewStyle(cropDraft)}
                     />
