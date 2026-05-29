@@ -36,7 +36,7 @@ export default function ReportDialog({ busy = false, error = '', onCancel, onSub
               maxLength={500}
               name="report-reason"
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Спам, оскорбления, мошенничество..."
+              placeholder="Почему он пидорас? (макс. 500 символов)"
               value={reason}
             />
           </label>
