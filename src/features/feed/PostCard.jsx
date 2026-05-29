@@ -1,18 +1,20 @@
-import { Bookmark, Heart, MessageCircle, Repeat2, Send, Share2 } from 'lucide-react';
+import { Bookmark, Heart, MessageCircle, Repeat2, Send, Share2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
-export default function PostCard({ compact = false, post, onComment, onToggle }) {
+export default function PostCard({ compact = false, currentUser, post, onComment, onDelete, onToggle }) {
   const [commentOpen, setCommentOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [shared, setShared] = useState(false);
+  const [busyDelete, setBusyDelete] = useState(false);
   const replyCount = post.comments.length;
   const commentsId = `post-comments-${post.id}`;
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
+  const isOwner = currentUser?.id === post.ownerId;
 
-  const handleCommentSubmit = (event) => {
+  const handleCommentSubmit = async (event) => {
     event.preventDefault();
     const text = draft.trim();
 
@@ -20,9 +22,28 @@ export default function PostCard({ compact = false, post, onComment, onToggle })
       return;
     }
 
-    onComment(post.id, text);
+    await onComment(post.id, text);
     setDraft('');
     setCommentOpen(false);
+  };
+
+  const handleDelete = async () => {
+    if (!isOwner || busyDelete) {
+      return;
+    }
+
+    const confirmed = window.confirm('Удалить этот пост? Это действие нельзя отменить.');
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBusyDelete(true);
+      await onDelete(post.id);
+    } finally {
+      setBusyDelete(false);
+    }
   };
 
   const handleShare = async () => {
@@ -57,6 +78,17 @@ export default function PostCard({ compact = false, post, onComment, onToggle })
                 #{tag}
               </span>
             ))}
+            {isOwner ? (
+              <button
+                className="ml-auto inline-flex h-8 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50"
+                disabled={busyDelete}
+                onClick={handleDelete}
+                type="button"
+              >
+                <Trash2 size={13} strokeWidth={1.8} />
+                удалить
+              </button>
+            ) : null}
           </div>
 
           <p className={[compact ? 'mt-1.5 leading-5' : 'mt-2 leading-6', 'max-w-3xl text-[0.92rem] text-text-soft'].join(' ')}>
@@ -121,7 +153,7 @@ export default function PostCard({ compact = false, post, onComment, onToggle })
               </div>
 
               <div className="grid gap-1.5">
-                {post.comments.slice(0, 2).map((comment) => (
+                {post.comments.slice(0, 4).map((comment) => (
                   <div className="flex gap-2 rounded-sqd-sm border border-border bg-bg-soft/80 p-2.5" key={comment.id}>
                     <Avatar image={comment.avatarImage} label={comment.avatar} size="sm" />
                     <div className="min-w-0">

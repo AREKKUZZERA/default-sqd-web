@@ -15,7 +15,7 @@ export default function PostComposer({ currentUser, onPost }) {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || hashtags.length === 0) {
+    if (!text) {
       return;
     }
 
@@ -34,7 +34,7 @@ export default function PostComposer({ currentUser, onPost }) {
             className="min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
             maxLength={280}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Напишите пост для команды с #хештегом"
+            placeholder="Напишите новый пост"
             value={draft}
           />
           <label className="mt-2 flex items-center gap-2 rounded-sqd-sm border border-border bg-bg-soft/75 px-3 py-2 text-text-soft transition-within focus-within:border-border-strong">
@@ -67,7 +67,7 @@ export default function PostComposer({ currentUser, onPost }) {
               </span>
               <button
                 className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition hover:bg-surface-3 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
-                disabled={!draft.trim() || hashtags.length === 0}
+                disabled={!draft.trim()}
                 type="submit"
               >
                 <Send size={15} strokeWidth={1.8} />

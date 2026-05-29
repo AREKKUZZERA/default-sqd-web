@@ -479,3 +479,36 @@ button {
     line-height: 0.95;
   }
 }
+
+.messages-scroll {
+  max-height: 420px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.message-bubble {
+  animation: message-pop 160ms ease-out;
+  word-break: break-word;
+}
+
+.message-bubble--own {
+  box-shadow: inset 0 -2px 0 rgba(123, 191, 180, 0.14);
+}
+
+@keyframes message-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .messages-scroll {
+    max-height: min(58vh, 460px);
+  }
+}

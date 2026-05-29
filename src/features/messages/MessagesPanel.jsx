@@ -16,6 +16,11 @@ function getParticipant(conversation, people) {
   return conversation.participant || people.find((person) => person.id === conversation.participantId);
 }
 
+function shouldStickToBottom(element) {
+  if (!element) return true;
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+}
+
 export default function MessagesPanel({ currentUser, expanded = false, people = [] }) {
   const [activeId, setActiveId] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -24,78 +29,133 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
   const [query, setQuery] = useState('');
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const realtimeReloadTimerRef = useRef(null);
+  const currentUserId = currentUser?.id;
+  const activeIdRef = useRef(activeId);
+  const reloadTimerRef = useRef(null);
+  const messagesListRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
 
-  const loadConversations = useCallback(async () => {
-    if (!currentUser?.id) {
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  const scrollMessagesToBottom = useCallback((behavior = 'smooth') => {
+    const element = messagesListRef.current;
+
+    if (!element) {
       return;
+    }
+
+    window.requestAnimationFrame(() => {
+      element.scrollTo({ top: element.scrollHeight, behavior });
+    });
+  }, []);
+
+  const loadConversations = useCallback(async ({ keepActive = true } = {}) => {
+    if (!currentUserId) {
+      return [];
     }
 
     try {
       setError('');
-      const items = await fetchConversations(currentUser.id);
+      const items = await fetchConversations(currentUserId);
       setConversations(items);
-      setActiveId((currentActiveId) => currentActiveId || items[0]?.id || null);
+      setActiveId((currentActiveId) => {
+        if (keepActive && currentActiveId && items.some((item) => item.id === currentActiveId)) {
+          return currentActiveId;
+        }
+
+        return items[0]?.id || null;
+      });
+      return items;
     } catch (loadError) {
       setError(loadError.message);
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [currentUser.id]);
+  }, [currentUserId]);
 
-  const loadActiveMessages = useCallback(async (conversationId = activeId) => {
+  const loadMessages = useCallback(async (conversationId, { markRead = false, scroll = false } = {}) => {
     if (!conversationId) {
-      return;
+      return [];
     }
 
     try {
       setError('');
       const messages = await fetchMessages(conversationId);
       setMessagesByConversation((items) => ({ ...items, [conversationId]: messages }));
+
+      if (markRead) {
+        await markConversationRead({ conversationId, currentUserId: currentUserId });
+      }
+
+      if (scroll) {
+        scrollMessagesToBottom('auto');
+      }
+
+      return messages;
     } catch (loadError) {
       setError(loadError.message);
+      return [];
     }
-  }, [activeId]);
+  }, [currentUserId, scrollMessagesToBottom]);
 
   useEffect(() => {
-    void Promise.resolve().then(loadConversations);
+    void Promise.resolve().then(() => loadConversations({ keepActive: true }));
   }, [loadConversations]);
-
-  useEffect(() => {
-    if (!currentUser?.id) {
-      return undefined;
-    }
-
-    const scheduleReloadMessages = () => {
-      window.clearTimeout(realtimeReloadTimerRef.current);
-      realtimeReloadTimerRef.current = window.setTimeout(() => {
-        void loadConversations();
-
-        if (activeId) {
-          void loadActiveMessages(activeId);
-        }
-      }, 350);
-    };
-
-    const channel = supabase
-      .channel(`default-sqd-messages-${currentUser.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, scheduleReloadMessages)
-      .subscribe();
-
-    return () => {
-      window.clearTimeout(realtimeReloadTimerRef.current);
-      supabase.removeChannel(channel);
-    };
-  }, [activeId, currentUser?.id, loadActiveMessages, loadConversations]);
 
   useEffect(() => {
     if (!activeId) {
       return;
     }
 
-    void Promise.resolve().then(() => loadActiveMessages(activeId));
-  }, [activeId, loadActiveMessages]);
+    shouldAutoScrollRef.current = true;
+    void Promise.resolve().then(async () => {
+      await loadMessages(activeId, { markRead: true, scroll: true });
+      await loadConversations({ keepActive: true });
+    });
+  }, [activeId, loadConversations, loadMessages]);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      return undefined;
+    }
+
+    const scheduleRefresh = (payload) => {
+      window.clearTimeout(reloadTimerRef.current);
+      reloadTimerRef.current = window.setTimeout(async () => {
+        const activeConversationId = activeIdRef.current;
+        const incomingConversationId = payload?.new?.conversation_id;
+        const senderId = payload?.new?.sender_id;
+        const isActiveConversation = activeConversationId && activeConversationId === incomingConversationId;
+
+        await loadConversations({ keepActive: true });
+
+        if (isActiveConversation) {
+          const sticky = shouldStickToBottom(messagesListRef.current) || senderId === currentUserId;
+          await loadMessages(activeConversationId, { markRead: senderId !== currentUserId, scroll: sticky });
+
+          if (sticky) {
+            scrollMessagesToBottom('smooth');
+          }
+        }
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`default-sqd-messages-${currentUserId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, scheduleRefresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_conversations' }, () => scheduleRefresh())
+      .subscribe();
+
+    return () => {
+      window.clearTimeout(reloadTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, loadConversations, loadMessages, scrollMessagesToBottom]);
 
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -109,53 +169,58 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
 
   const availablePeople = useMemo(() => {
     const activeParticipantIds = new Set(conversations.map((conversation) => conversation.participantId));
-    return people.filter((person) => person.id !== currentUser.id && !activeParticipantIds.has(person.id));
-  }, [conversations, currentUser.id, people]);
+    return people.filter((person) => person.id !== currentUserId && !activeParticipantIds.has(person.id));
+  }, [conversations, currentUserId, people]);
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeId) ?? conversations[0];
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
   const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
 
+  useEffect(() => {
+    if (shouldAutoScrollRef.current) {
+      scrollMessagesToBottom('auto');
+      shouldAutoScrollRef.current = false;
+    }
+  }, [activeMessages.length, scrollMessagesToBottom]);
+
   const createChat = async (person) => {
     try {
       setError('');
-      const id = await createDirectConversation(currentUser.id, person.id);
+      const id = await createDirectConversation(currentUserId, person.id);
       setActiveId(id);
       setDirectoryOpen(false);
-      await loadConversations();
-      await loadActiveMessages(id);
+      await loadConversations({ keepActive: true });
+      await loadMessages(id, { markRead: true, scroll: true });
     } catch (createError) {
       setError(createError.message);
     }
   };
 
-  const selectConversation = async (conversationId) => {
+  const selectConversation = (conversationId) => {
     setActiveId(conversationId);
-    try {
-      await markConversationRead({ conversationId, currentUserId: currentUser.id });
-      await loadActiveMessages(conversationId);
-      await loadConversations();
-    } catch (readError) {
-      setError(readError.message);
-    }
   };
 
   const handleSend = async (event) => {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || !activeConversation) {
+    if (!text || !activeConversation || sending) {
       return;
     }
 
     try {
+      setSending(true);
       setError('');
-      const messages = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUser.id, text });
+      shouldAutoScrollRef.current = true;
+      const messages = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUserId, text });
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: messages }));
       setDraft('');
-      await loadConversations();
+      scrollMessagesToBottom('smooth');
+      await loadConversations({ keepActive: true });
     } catch (sendError) {
       setError(sendError.message);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -164,7 +229,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       {expanded ? (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="y2k-label mb-2">direct_messages / live</span>
+            <span className="y2k-label mb-2">direct_messages / realtime</span>
             <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Сообщения</h1>
           </div>
           <button
@@ -225,7 +290,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
           {error ? <p className="mt-3 rounded-sqd-xs border border-warning/40 bg-warning/10 p-3 text-sm text-warning">{error}</p> : null}
         </div>
 
-        <div className={['grid', expanded ? 'lg:grid-cols-[280px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
+        <div className={['grid', expanded ? 'lg:grid-cols-[300px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
           <div className="grid max-h-[520px] content-start overflow-y-auto border-border lg:border-r">
             {loading ? (
               <p className="p-4 text-sm text-text-soft">Загружаем диалоги...</p>
@@ -267,10 +332,11 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
             )}
           </div>
 
-          <div className="min-w-0 p-4">
+          <div className="flex min-h-[520px] min-w-0 flex-col p-4">
             {activeParticipant ? (
               <>
-                <div className="mb-4">
+                <div className="mb-4 flex items-center gap-3 rounded-sqd-sm border border-border bg-surface-2/60 p-3">
+                  <Avatar active={activeParticipant.status === 'online'} image={activeParticipant.avatarImage} label={activeParticipant.avatar} size="sm" />
                   <div className="min-w-0">
                     <p className="truncate font-ui text-base font-bold text-text">{activeParticipant.name}</p>
                     <p className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">
@@ -279,39 +345,48 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                   </div>
                 </div>
 
-                <div className={['grid gap-2 overflow-y-auto pr-1', expanded ? 'max-h-[420px]' : 'max-h-72'].join(' ')}>
-                  {activeMessages.length > 0 ? (
-                    activeMessages.map((message) => {
-                      const own = message.authorId === currentUser.id;
-                      return (
-                        <div
-                          className={[
-                            'max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
-                            own ? 'ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
-                          ].join(' ')}
-                          key={message.id}
-                        >
-                          <p>{message.body}</p>
-                          <p className="mt-1 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">{message.time}</p>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="rounded-sqd-sm border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
-                      Сообщений пока нет. Начните диалог.
-                    </p>
-                  )}
+                <div
+                  className="messages-scroll flex-1 overflow-y-auto pr-1"
+                  onScroll={() => {
+                    shouldAutoScrollRef.current = shouldStickToBottom(messagesListRef.current);
+                  }}
+                  ref={messagesListRef}
+                >
+                  <div className="grid min-h-full content-end gap-2 py-1">
+                    {activeMessages.length > 0 ? (
+                      activeMessages.map((message) => {
+                        const own = message.authorId === currentUserId;
+                        return (
+                          <div
+                            className={[
+                              'message-bubble max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                              own ? 'message-bubble--own ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
+                            ].join(' ')}
+                            key={message.id}
+                          >
+                            <p>{message.body}</p>
+                            <p className="mt-1 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">{message.time}</p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="rounded-sqd-sm border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
+                        Сообщений пока нет. Начните диалог.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <form className="mt-4 flex gap-2" onSubmit={handleSend}>
                   <input
                     className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
+                    disabled={sending}
                     maxLength={1000}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder="Сообщение"
                     value={draft}
                   />
-                  <IconButton active={Boolean(draft.trim())} icon={SendHorizonal} label="Отправить" type="submit" />
+                  <IconButton active={Boolean(draft.trim()) && !sending} disabled={sending} icon={SendHorizonal} label="Отправить" type="submit" />
                 </form>
               </>
             ) : (

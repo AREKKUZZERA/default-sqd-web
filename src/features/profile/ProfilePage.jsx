@@ -35,7 +35,7 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-export default function ProfilePage({ currentUser, people, posts, onCommentPost, onTogglePost, onUpdateProfile }) {
+export default function ProfilePage({ currentUser, people, posts, onCommentPost, onDeletePost, onTogglePost, onUpdateProfile }) {
   const [activeTab, setActiveTab] = useState('posts');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
@@ -269,7 +269,7 @@ export default function ProfilePage({ currentUser, people, posts, onCommentPost,
 
       <div className="grid gap-4">
         {profilePosts.length > 0 ? (
-          profilePosts.map((post) => <PostCard key={post.id} onComment={onCommentPost} onToggle={onTogglePost} post={post} />)
+          profilePosts.map((post) => <PostCard currentUser={currentUser} key={post.id} onComment={onCommentPost} onDelete={onDeletePost} onToggle={onTogglePost} post={post} />)
         ) : (
           <Panel className="p-6 text-center">
             <p className="font-ui text-lg font-bold text-text">Здесь пока пусто</p>

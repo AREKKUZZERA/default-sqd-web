@@ -7,6 +7,7 @@ import ProfilePanel from '../features/profile/ProfilePanel.jsx';
 import {
   createComment as createRemoteComment,
   createPost as createRemotePost,
+  deletePost as deleteRemotePost,
   fetchNotifications,
   fetchPosts,
   fetchProfiles,
@@ -30,6 +31,7 @@ const mobileNavigation = [
 export default function AppShell({ authenticatedUser, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
+  const remoteReloadTimerRef = useRef(null);
   const [activeView, setActiveView] = useState('feed');
   const [currentUser, setCurrentUser] = useState(authenticatedUser);
   const [people, setPeople] = useState([]);
@@ -84,16 +86,24 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return undefined;
     }
 
+    const scheduleRemoteReload = () => {
+      window.clearTimeout(remoteReloadTimerRef.current);
+      remoteReloadTimerRef.current = window.setTimeout(() => {
+        void loadRemoteData();
+      }, 350);
+    };
+
     const channel = supabase
       .channel(`default-sqd-release-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadRemoteData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, loadRemoteData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, loadRemoteData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, loadRemoteData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, loadRemoteData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, scheduleRemoteReload)
       .subscribe();
 
     return () => {
+      window.clearTimeout(remoteReloadTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [currentUser?.id, loadRemoteData]);
@@ -174,6 +184,15 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const addComment = async (postId, text) => {
     try {
       const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
+      setPosts(remotePosts);
+    } catch (error) {
+      setBackendError(error.message);
+    }
+  };
+
+  const deletePost = async (postId) => {
+    try {
+      const remotePosts = await deleteRemotePost({ currentUserId: currentUser.id, postId });
       setPosts(remotePosts);
     } catch (error) {
       setBackendError(error.message);
@@ -390,6 +409,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           <ProfilePage
             currentUser={displayedUser}
             onCommentPost={addComment}
+            onDeletePost={deletePost}
             onTogglePost={togglePost}
             onUpdateProfile={updateProfile}
             people={people}
@@ -403,6 +423,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
             currentUser={displayedUser}
             onAddPost={addPost}
             onCommentPost={addComment}
+            onDeletePost={deletePost}
             onSelectAuthor={selectAuthor}
             onTogglePost={togglePost}
             posts={visiblePosts}

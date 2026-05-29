@@ -294,6 +294,42 @@ export async function createComment({ currentUserId, postId, text }) {
   return fetchPosts(currentUserId);
 }
 
+export async function deletePost({ currentUserId, postId }) {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .eq('owner_id', currentUserId);
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchPosts(currentUserId);
+}
+
+export async function deleteComment({ commentId, currentUserId }) {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('author_id', currentUserId);
+
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  return fetchPosts(currentUserId);
+}
+
 export async function toggleReaction({ active, currentUserId, postId, type }) {
   if (!isSupabaseConfigured) {
     return [];
@@ -439,7 +475,8 @@ export async function fetchConversations(currentUserId) {
       )
     `)
     .order('created_at', { ascending: false })
-    .order('created_at', { referencedTable: 'direct_messages', ascending: false });
+    .order('created_at', { referencedTable: 'direct_messages', ascending: false })
+    .limit(1, { referencedTable: 'direct_messages' });
 
   if (error) {
     throw new Error(getErrorMessage(error));

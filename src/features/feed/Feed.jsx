@@ -9,6 +9,7 @@ export default function Feed({
   currentUser,
   onAddPost,
   onCommentPost,
+  onDeletePost,
   onSelectAuthor,
   onTogglePost,
   posts,
@@ -54,7 +55,7 @@ export default function Feed({
       <div className="grid gap-3">
         {posts.length > 0 ? (
           posts.map((post) => (
-            <PostCard compact={compactMode} key={post.id} onComment={onCommentPost} onToggle={onTogglePost} post={post} />
+            <PostCard compact={compactMode} currentUser={currentUser} key={post.id} onComment={onCommentPost} onDelete={onDeletePost} onToggle={onTogglePost} post={post} />
           ))
         ) : (
           <Panel className="p-8 text-center">

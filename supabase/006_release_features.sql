@@ -358,3 +358,54 @@ begin
   alter publication supabase_realtime add table public.direct_messages;
 exception when duplicate_object then null;
 end $$;
+
+-- Atomic direct chat creation used by the frontend. Keeps RLS strict while avoiding insert+select loops.
+create or replace function public.create_direct_conversation(target_user_id text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id text;
+  conversation_uuid uuid;
+  conversation_key text;
+begin
+  current_user_id := auth.uid()::text;
+
+  if current_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if target_user_id is null or length(trim(target_user_id)) = 0 then
+    raise exception 'Target user is required';
+  end if;
+
+  if target_user_id = current_user_id then
+    raise exception 'Cannot create conversation with yourself';
+  end if;
+
+  if not exists (select 1 from public.profiles where id = target_user_id) then
+    raise exception 'Target profile does not exist';
+  end if;
+
+  conversation_key := case
+    when current_user_id < target_user_id then current_user_id || ':' || target_user_id
+    else target_user_id || ':' || current_user_id
+  end;
+
+  insert into public.direct_conversations (direct_key)
+  values (conversation_key)
+  on conflict (direct_key) do update
+  set direct_key = excluded.direct_key
+  returning id into conversation_uuid;
+
+  insert into public.direct_conversation_members (conversation_id, user_id)
+  values (conversation_uuid, current_user_id), (conversation_uuid, target_user_id)
+  on conflict (conversation_id, user_id) do nothing;
+
+  return conversation_uuid;
+end;
+$$;
+
+grant execute on function public.create_direct_conversation(text) to authenticated;
