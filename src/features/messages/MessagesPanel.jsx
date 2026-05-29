@@ -24,6 +24,44 @@ function shouldStickToBottom(element) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
 }
 
+const MESSAGE_DRAFT_STORAGE_KEY = 'sqd:messages:draft';
+
+const getMessageDraftStorageKey = (userId, conversationId) => {
+  if (!userId || !conversationId) {
+    return null;
+  }
+
+  return `${MESSAGE_DRAFT_STORAGE_KEY}:${userId}:${conversationId}`;
+};
+
+const readStoredMessageDraft = (storageKey) => {
+  if (!storageKey) {
+    return '';
+  }
+
+  try {
+    return window.localStorage.getItem(storageKey) || '';
+  } catch {
+    return '';
+  }
+};
+
+const writeStoredMessageDraft = (storageKey, value) => {
+  if (!storageKey) {
+    return;
+  }
+
+  try {
+    if (value) {
+      window.localStorage.setItem(storageKey, value);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // Draft persistence is optional; messaging must keep working if storage is unavailable.
+  }
+};
+
 export default function MessagesPanel({
   currentUser,
   expanded = false,
@@ -35,7 +73,7 @@ export default function MessagesPanel({
 }) {
   const [activeId, setActiveId] = useState(null);
   const [conversations, setConversations] = useState([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState({ storageKey: null, value: '' });
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageDraft, setEditingMessageDraft] = useState('');
   const [hasMoreByConversation, setHasMoreByConversation] = useState({});
@@ -72,7 +110,7 @@ export default function MessagesPanel({
 
     const frameId = window.requestAnimationFrame(() => {
       setActiveId(null);
-      setDraft('');
+      setDraft({ storageKey: null, value: '' });
       setEditingMessageId(null);
       setEditingMessageDraft('');
       setMessageActionError('');
@@ -240,6 +278,8 @@ export default function MessagesPanel({
 
   const activeConversation = activeId ? conversations.find((conversation) => conversation.id === activeId) : null;
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
+  const draftStorageKey = useMemo(() => getMessageDraftStorageKey(currentUserId, activeConversation?.id), [activeConversation?.id, currentUserId]);
+  const draftValue = draft.storageKey === draftStorageKey ? draft.value : readStoredMessageDraft(draftStorageKey);
   const activeMessages = useMemo(
     () => (activeConversation ? messagesByConversation[activeConversation.id] ?? [] : []),
     [activeConversation, messagesByConversation],
@@ -263,7 +303,7 @@ export default function MessagesPanel({
   }, [activeConversation?.id, activeMessages, scrollMessagesToBottom]);
 
   const resetComposerState = () => {
-    setDraft('');
+    setDraft({ storageKey: null, value: '' });
     setEditingMessageId(null);
     setEditingMessageDraft('');
     setMessageActionError('');
@@ -304,7 +344,7 @@ export default function MessagesPanel({
 
   const handleSend = async (event) => {
     event.preventDefault();
-    const text = draft.trim();
+    const text = draftValue.trim();
 
     if (!text || !activeConversation || sending) {
       return;
@@ -327,7 +367,8 @@ export default function MessagesPanel({
       setMessageActionError('');
       shouldAutoScrollRef.current = true;
       requestScrollMessagesToBottom('smooth');
-      setDraft('');
+      setDraft({ storageKey: draftStorageKey, value: '' });
+      writeStoredMessageDraft(draftStorageKey, '');
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: [...previousMessages, temporaryMessage] }));
       const result = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUserId, text });
       setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: result.messages }));
@@ -452,6 +493,12 @@ export default function MessagesPanel({
 
     event.preventDefault();
     event.currentTarget.form?.requestSubmit();
+  };
+
+  const handleDraftChange = (event) => {
+    const value = event.target.value;
+    setDraft({ storageKey: draftStorageKey, value });
+    writeStoredMessageDraft(draftStorageKey, value);
   };
 
   return (
@@ -726,15 +773,15 @@ export default function MessagesPanel({
                       aria-disabled={sending}
                       maxLength={1000}
                       name="message-body"
-                      onChange={(event) => setDraft(event.target.value)}
+                      onChange={handleDraftChange}
                       onKeyDown={handleComposerKeyDown}
                       placeholder="Сообщение"
                       readOnly={sending}
                       ref={messageInputRef}
                       rows={1}
-                      value={draft}
+                      value={draftValue}
                     />
-                    <IconButton active={Boolean(draft.trim()) && !sending} disabled={!draft.trim() || sending} icon={SendHorizonal} label="Отправить" type="submit">
+                    <IconButton active={Boolean(draftValue.trim()) && !sending} disabled={!draftValue.trim() || sending} icon={SendHorizonal} label="Отправить" type="submit">
                       {sending ? '...' : null}
                     </IconButton>
                   </div>
