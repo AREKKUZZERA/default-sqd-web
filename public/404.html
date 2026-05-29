@@ -3,16 +3,14 @@
   <head>
     <meta charset="utf-8">
     <script>
-      // Сохраняем текущий URL и редиректим на главную
-      var path = window.location.pathname;
-      var search = window.location.search;
-      var hash = window.location.hash;
-      
-      // Кодируем путь в query-параметр
-      var redirect = window.location.origin + '/' + 
-        '?p=' + encodeURIComponent(path + search) + hash;
-      
-      window.location.replace(redirect);
+      var l = window.location;
+      var base = '/default-sqd-web';
+      l.replace(
+        l.protocol + '//' + l.host + base +
+        '/?p=' + encodeURIComponent(
+          l.pathname.replace(base, '') + l.search
+        ) + l.hash
+      );
     </script>
   </head>
   <body></body>
