@@ -740,10 +740,29 @@ body {
 }
 
 .status-pill {
+  border-color: rgba(238, 232, 225, 0.14);
+  background: rgba(238, 232, 225, 0.045);
+  color: var(--color-text-soft);
+  box-shadow: inset 0 0 0 1px rgba(238, 232, 225, 0.025);
+}
+
+.status-pill--online {
   border-color: rgba(120, 199, 189, 0.42);
   background: rgba(120, 199, 189, 0.08);
   color: #9edbd3;
   box-shadow: inset 0 0 0 1px rgba(120, 199, 189, 0.045);
+}
+
+.status-pill--offline {
+  border-color: rgba(238, 232, 225, 0.14);
+  background: rgba(238, 232, 225, 0.045);
+  color: var(--color-muted);
+}
+
+.role-pill {
+  border-color: rgba(238, 232, 225, 0.14);
+  background: rgba(19, 23, 27, 0.68);
+  color: var(--color-text-soft);
 }
 
 .profile-mini-stat,

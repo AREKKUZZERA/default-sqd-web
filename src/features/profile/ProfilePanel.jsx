@@ -33,7 +33,12 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
               <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
             </button>
-            <span className="status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase">
+            <span
+              className={[
+                'status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
+                currentUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
+              ].join(' ')}
+            >
               {currentUser.status || 'online'}
             </span>
           </div>

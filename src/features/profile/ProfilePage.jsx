@@ -1,4 +1,4 @@
-import { MessageCircle, Upload } from 'lucide-react';
+import { MessageCircle, Upload, UserCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
@@ -542,9 +542,21 @@ export default function ProfilePage({
 
           <div className="mt-5">
             <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
-            <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-              @{profileUser.userId} / {profileUser.role}
-            </p>
+            <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
+              <span className="role-pill inline-flex items-center gap-2 rounded-sqd-xs border px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em]">
+                <UserCircle size={14} strokeWidth={1.8} />
+                {profileUser.role || 'Member'}
+              </span>
+              <span
+                className={[
+                  'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
+                  profileUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
+                ].join(' ')}
+              >
+                {profileUser.status || 'offline'}
+              </span>
+            </div>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
           </div>
 
