@@ -441,7 +441,6 @@ export default function ProfilePage({
                   <UserCircle size={14} strokeWidth={1.8} />
                   роль: {profileUser.role || 'Member'}
                 </span>
-                <PermissionBadges permissions={profileUser.permissions} />
                 <span
                   className={[
                     'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
@@ -450,6 +449,8 @@ export default function ProfilePage({
                 >
                   {profileUser.status || 'offline'}
                 </span>
+
+                <PermissionBadges permissions={profileUser.permissions} />
               </div>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
             </div>
