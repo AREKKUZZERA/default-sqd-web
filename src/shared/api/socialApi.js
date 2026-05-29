@@ -487,7 +487,7 @@ export async function fetchPostById(currentUserId, postId) {
   return mapPost(data, currentUserId, mediaMap);
 }
 
-export async function createPost({ hashtags, text }) {
+export async function createPost({ currentUserId, hashtags, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -498,16 +498,17 @@ export async function createPost({ hashtags, text }) {
     throw new Error('Пост не может быть пустым.');
   }
 
-  const { error } = await supabase.rpc('create_post_safe', {
-    body: cleanText,
-    tag_list: normalizeTags(hashtags),
+  const { error } = await supabase.from('posts').insert({
+    owner_id: currentUserId,
+    text: cleanText,
+    tags: normalizeTags(hashtags),
   });
 
   if (error) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts();
+  return fetchPosts(currentUserId);
 }
 
 export async function updatePost({ currentUserId, hashtags, postId, text }) {
@@ -537,7 +538,7 @@ export async function updatePost({ currentUserId, hashtags, postId, text }) {
   return fetchPosts(currentUserId);
 }
 
-export async function createComment({ postId, text }) {
+export async function createComment({ currentUserId, postId, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -548,16 +549,17 @@ export async function createComment({ postId, text }) {
     throw new Error('Комментарий не может быть пустым.');
   }
 
-  const { error } = await supabase.rpc('create_comment_safe', {
-    target_post_id: Number(postId),
-    body: cleanText,
+  const { error } = await supabase.from('comments').insert({
+    post_id: postId,
+    author_id: currentUserId,
+    text: cleanText,
   });
 
   if (error) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts();
+  return fetchPosts(currentUserId);
 }
 
 export async function deletePost({ currentUserId, postId }) {
@@ -869,7 +871,7 @@ export async function createDirectConversation(currentUserId, participantId) {
   return data;
 }
 
-export async function sendDirectMessage({ conversationId, text }) {
+export async function sendDirectMessage({ conversationId, currentUserId, text }) {
   if (!isSupabaseConfigured) {
     return { hasMore: false, messages: [] };
   }
@@ -880,9 +882,10 @@ export async function sendDirectMessage({ conversationId, text }) {
     throw new Error('Сообщение не может быть пустым.');
   }
 
-  const { error } = await supabase.rpc('send_direct_message_safe', {
-    target_conversation_id: conversationId,
-    body: cleanText,
+  const { error } = await supabase.from('direct_messages').insert({
+    conversation_id: conversationId,
+    sender_id: currentUserId,
+    text: cleanText,
   });
 
   if (error) {
