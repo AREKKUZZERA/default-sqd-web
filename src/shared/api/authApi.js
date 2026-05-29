@@ -2,6 +2,14 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const getErrorMessage = (error) => error?.message || 'Auth request failed';
 
+const withTimeout = (promise, ms = 8000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase request timeout')), ms)
+    ),
+  ]);
+
 const normalizeUserId = (value, fallback) => {
   const normalized = String(value || '')
     .trim()
@@ -28,7 +36,12 @@ export function mapAuthProfile(profile, user) {
 
   return {
     id: profile?.id || user?.id,
-    userId: profile?.user_id || normalizeUserId(user?.user_metadata?.user_id || emailName, `user_${user?.id?.slice(0, 6) || 'sqd'}`),
+    userId:
+      profile?.user_id ||
+      normalizeUserId(
+        user?.user_metadata?.user_id || emailName,
+        `user_${user?.id?.slice(0, 6) || 'sqd'}`
+      ),
     name,
     role: profile?.role || 'Member',
     avatar: profile?.avatar || getInitials(name),
@@ -45,7 +58,7 @@ export async function getCurrentSession() {
     return null;
   }
 
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await withTimeout(supabase.auth.getSession(), 8000);
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -71,10 +84,13 @@ export async function signInWithPassword({ email, password }) {
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
+  const { data, error } = await withTimeout(
+    supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    }),
+    8000
+  );
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -88,7 +104,7 @@ export async function signOut() {
     return;
   }
 
-  const { error } = await supabase.auth.signOut();
+  const { error } = await withTimeout(supabase.auth.signOut(), 8000);
 
   if (error) {
     throw new Error(getErrorMessage(error));
@@ -101,11 +117,15 @@ export async function ensureProfileForSession(session) {
   }
 
   const user = session.user;
-  const { data: existing, error: selectError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle();
+
+  const { data: existing, error: selectError } = await withTimeout(
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle(),
+    8000
+  );
 
   if (selectError) {
     throw new Error(getErrorMessage(selectError));
@@ -117,7 +137,11 @@ export async function ensureProfileForSession(session) {
 
   const emailName = user.email?.split('@')[0] || `user_${user.id.slice(0, 6)}`;
   const name = user.user_metadata?.name || user.user_metadata?.full_name || emailName;
-  const userId = normalizeUserId(user.user_metadata?.user_id || emailName, `user_${user.id.slice(0, 6)}`);
+  const userId = normalizeUserId(
+    user.user_metadata?.user_id || emailName,
+    `user_${user.id.slice(0, 6)}`
+  );
+
   const baseProfile = {
     id: user.id,
     user_id: userId,
@@ -129,7 +153,10 @@ export async function ensureProfileForSession(session) {
     bio: 'Новый участник закрытого пространства DEFAULT SQUAD.',
   };
 
-  const { data, error } = await supabase.from('profiles').insert(baseProfile).select('*').single();
+  const { data, error } = await withTimeout(
+    supabase.from('profiles').insert(baseProfile).select('*').single(),
+    8000
+  );
 
   if (!error) {
     return mapAuthProfile(data, user);
@@ -140,7 +167,11 @@ export async function ensureProfileForSession(session) {
       ...baseProfile,
       user_id: `${userId}_${user.id.slice(0, 6)}`,
     };
-    const { data: retryData, error: retryError } = await supabase.from('profiles').insert(retryProfile).select('*').single();
+
+    const { data: retryData, error: retryError } = await withTimeout(
+      supabase.from('profiles').insert(retryProfile).select('*').single(),
+      8000
+    );
 
     if (retryError) {
       throw new Error(getErrorMessage(retryError));
