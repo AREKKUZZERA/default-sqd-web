@@ -1,14 +1,18 @@
 # Supabase setup for DEFAULT-SQD-WEB
 
-## First setup
+Release mode uses **closed email/password auth** through Supabase Auth. The frontend does not contain registration UI and does not store passwords.
 
-Run these SQL files in Supabase Dashboard -> SQL Editor, in this order:
+## Run SQL in this order
 
-1. `001_schema.sql`
-2. `002_seed.sql`
-3. `003_storage.sql` - optional, avatar/banner bucket
-4. `004_closed_auth.sql` - required for closed login/password auth
-5. `005_storage_auth.sql` - optional, locks storage writes to logged-in users
+For the current existing project, run these in Supabase Dashboard -> SQL Editor:
+
+1. `001_schema.sql` - base tables, RLS enabled, no public demo write policies
+2. `004_closed_auth.sql` - authenticated RLS policies and automatic profile creation for Auth users
+3. `006_release_features.sql` - real notifications and direct messages
+4. `005_storage_auth.sql` - optional authenticated storage policies for avatar/banner uploads
+5. `007_remove_demo_content.sql` - removes legacy mock/demo profiles and their posts/comments/reactions
+
+`002_seed.sql` intentionally inserts nothing in release mode. Do not seed demo profiles/posts for production.
 
 ## GitHub Pages variables
 
@@ -21,35 +25,43 @@ VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 
 Add them in GitHub -> Settings -> Environments -> `github-pages` -> Environment variables.
 
-## Closed account creation
+## Create accounts safely
 
-Do **not** put passwords or service-role keys in this repository.
+Do **not** put passwords, service-role keys or real account credentials in this repository.
 
 Create accounts manually in Supabase Dashboard:
 
 1. Authentication -> Users -> Add user
-2. Set email and temporary password
-3. Confirm the email manually if needed
+2. Set email and a temporary password
+3. Enable/confirm the user
 4. Optional metadata:
 
 ```json
 {
-  "name": "Mira Vale",
-  "user_id": "mira_vale",
-  "role": "Product designer"
+  "name": "Your Name",
+  "user_id": "your_login",
+  "role": "Member"
 }
 ```
 
 `004_closed_auth.sql` creates a database trigger. When a Supabase Auth user is created, a matching row is added to `public.profiles` with `profiles.id = auth.users.id`.
 
-## Important security switch
+## Disable public signup
 
-In Supabase Dashboard, disable public self-signup if you want the system truly closed:
+In Supabase Dashboard, disable public self-signup:
 
 Authentication -> Providers -> Email -> Signups / Allow new users to sign up -> OFF
 
-The frontend only has login UI, not registration UI. RLS policies in `004_closed_auth.sql` restrict the database to authenticated users and restrict writes to each user's own profile/posts/comments/reactions.
+The frontend only has login UI. Database RLS policies restrict reads/writes to authenticated users and restrict writes to the current user's profile/posts/comments/reactions/messages.
 
-## Why accounts are not stored in repo
+## Removing fake content
 
-A static GitHub Pages frontend cannot safely create users with an admin key. Passwords must be handled by Supabase Auth. The repository can contain schema, RLS policies, and UI, but not real credentials.
+Run `007_remove_demo_content.sql` once after the release migration. It deletes legacy demo users:
+
+- `user_mira_vale`
+- `user_nika_storm`
+- `user_ray_chen`
+- `user_ari_sol`
+- `user_noor_lane`
+
+Their old posts, comments and reactions are removed automatically by `ON DELETE CASCADE`.

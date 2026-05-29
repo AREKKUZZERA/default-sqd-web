@@ -1,16 +1,17 @@
-import { Bell, Check, LogOut, Search, Settings } from 'lucide-react';
+import { Bell, Check, Home, LogOut, MessageCircle, Search, Settings, UserCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import MessagesPanel from '../features/messages/MessagesPanel.jsx';
 import ProfilePage from '../features/profile/ProfilePage.jsx';
 import ProfilePanel from '../features/profile/ProfilePanel.jsx';
-import { currentUser as seedUser, initialPosts, people } from '../shared/data/socialData.js';
 import {
   createComment as createRemoteComment,
   createPost as createRemotePost,
+  fetchNotifications,
   fetchPosts,
+  fetchProfiles,
   getReactionTypeByKey,
-  isSupabaseConfigured,
+  markNotificationsRead,
   toggleReaction,
   updateProfile as updateRemoteProfile,
 } from '../shared/api/socialApi.js';
@@ -20,39 +21,53 @@ import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
 import Panel from '../shared/ui/Panel.jsx';
 
-export default function AppShell({ authenticatedUser = null, authError = '', onSignOut = () => {} }) {
+const mobileNavigation = [
+  { icon: Home, label: 'Лента', target: 'feed' },
+  { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
+  { icon: UserCircle, label: 'Профиль', target: 'profile' },
+];
+
+export default function AppShell({ authenticatedUser, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
   const [activeView, setActiveView] = useState('feed');
-  const [currentUser, setCurrentUser] = useState(authenticatedUser || seedUser);
-  const [posts, setPosts] = useState(initialPosts);
+  const [currentUser, setCurrentUser] = useState(authenticatedUser);
+  const [people, setPeople] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [query, setQuery] = useState('');
   const [activeTopic, setActiveTopic] = useState('all');
   const [activeAuthor, setActiveAuthor] = useState('all');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
-  const [notificationsRead, setNotificationsRead] = useState(false);
-  const [backendReady, setBackendReady] = useState(!isSupabaseConfigured);
+  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('default-sqd-density') === 'compact');
+  const [backendReady, setBackendReady] = useState(false);
   const [backendError, setBackendError] = useState('');
 
-  const notificationCount = notificationsRead ? 0 : 3;
+  const unreadNotifications = notifications.filter((item) => !item.readAt).length;
   const displayedBackendError = backendError || authError;
 
-  const loadRemotePosts = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+
+  useEffect(() => {
+    localStorage.setItem('default-sqd-density', compactMode ? 'compact' : 'default');
+  }, [compactMode]);
+
+  const loadRemoteData = useCallback(async () => {
+    if (!currentUser?.id) {
       return;
     }
 
     try {
-      if (!currentUser?.id) {
-        return;
-      }
-
       setBackendError('');
-      const remotePosts = await fetchPosts(currentUser.id);
+      const [remoteProfiles, remotePosts, remoteNotifications] = await Promise.all([
+        fetchProfiles(),
+        fetchPosts(currentUser.id),
+        fetchNotifications(currentUser.id),
+      ]);
 
+      setPeople(remoteProfiles);
       setPosts(remotePosts);
+      setNotifications(remoteNotifications);
     } catch (error) {
       setBackendError(error.message);
     } finally {
@@ -61,25 +76,27 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
   }, [currentUser]);
 
   useEffect(() => {
-    void Promise.resolve().then(loadRemotePosts);
-  }, [loadRemotePosts]);
+    void Promise.resolve().then(loadRemoteData);
+  }, [loadRemoteData]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    if (!currentUser?.id) {
       return undefined;
     }
 
     const channel = supabase
-      .channel('default-sqd-social-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, loadRemotePosts)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, loadRemotePosts)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, loadRemotePosts)
+      .channel(`default-sqd-release-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadRemoteData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, loadRemoteData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, loadRemoteData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, loadRemoteData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, loadRemoteData)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadRemotePosts]);
+  }, [currentUser?.id, loadRemoteData]);
 
   useEffect(() => {
     if (!notificationsOpen && !settingsOpen) {
@@ -102,19 +119,28 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
   }, [notificationsOpen, settingsOpen]);
 
   const displayedUser = useMemo(() => {
+    const freshProfile = people.find((person) => person.id === currentUser?.id) || currentUser;
     const ownPosts = posts.filter((post) => post.ownerId === currentUser.id).length;
     const ownReposts = posts.filter((post) => post.reposted).length;
     const ownBookmarks = posts.filter((post) => post.bookmarked).length;
 
     return {
-      ...currentUser,
+      ...freshProfile,
       stats: [
         { label: 'посты', value: String(ownPosts) },
         { label: 'репосты', value: String(ownReposts) },
         { label: 'избранное', value: String(ownBookmarks) },
       ],
     };
-  }, [currentUser, posts]);
+  }, [currentUser, people, posts]);
+
+  const authorFilters = useMemo(
+    () => [
+      { label: 'Все', value: 'all', caption: 'все авторы' },
+      ...people.map((person) => ({ label: person.name, value: person.id, caption: `@${person.userId}` })),
+    ],
+    [people],
+  );
 
   const visiblePosts = useMemo(() => {
     const queryTerms = query
@@ -126,8 +152,8 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
     return posts.filter((post) => {
       const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
       const matchesTopic = activeTopic === 'all' || tags.includes(activeTopic);
-      const matchesAuthor = activeAuthor === 'all' || post.author === activeAuthor;
-      const searchable = `${post.text} ${tags.map((tag) => `#${tag}`).join(' ')}`.toLowerCase();
+      const matchesAuthor = activeAuthor === 'all' || post.ownerId === activeAuthor;
+      const searchable = `${post.author} @${post.userId} ${post.text} ${tags.map((tag) => `#${tag}`).join(' ')}`.toLowerCase();
       const matchesQuery = queryTerms.length === 0 || queryTerms.every((term) => searchable.includes(term));
 
       return matchesTopic && matchesAuthor && matchesQuery;
@@ -137,147 +163,63 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
   const hashtagTrends = useMemo(() => buildHashtagTrends(posts), [posts]);
 
   const addPost = async ({ hashtags, mediaAttached = false, text }) => {
-    if (isSupabaseConfigured) {
-      try {
-        const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, mediaAttached, text });
-        setPosts(remotePosts);
-      } catch (error) {
-        setBackendError(error.message);
-      }
-
-      return;
+    try {
+      const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, mediaAttached, text });
+      setPosts(remotePosts);
+    } catch (error) {
+      setBackendError(error.message);
     }
-
-    setPosts((currentPosts) => [
-      {
-        id: currentPosts.length + 1,
-        ownerId: currentUser.id,
-        author: currentUser.name,
-        userId: currentUser.userId,
-        avatar: currentUser.avatar,
-        avatarImage: currentUser.avatarImage,
-        time: 'сейчас',
-        text,
-        mediaAttached,
-        tag: hashtags[0],
-        tags: hashtags,
-        likes: 0,
-        replies: 0,
-        reposts: 0,
-        liked: false,
-        reposted: false,
-        bookmarked: false,
-        comments: [],
-      },
-      ...currentPosts,
-    ]);
   };
 
   const addComment = async (postId, text) => {
-    if (isSupabaseConfigured) {
-      try {
-        const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
-        setPosts(remotePosts);
-      } catch (error) {
-        setBackendError(error.message);
-      }
-
-      return;
+    try {
+      const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
+      setPosts(remotePosts);
+    } catch (error) {
+      setBackendError(error.message);
     }
-
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              comments: [
-                ...post.comments,
-                {
-                  id: `${post.id}_${post.comments.length + 1}`,
-                  author: currentUser.name,
-                  avatar: currentUser.avatar,
-                  avatarImage: currentUser.avatarImage,
-                  text,
-                },
-              ],
-            }
-          : post,
-      ),
-    );
   };
 
   const updateProfile = async (updater) => {
-    const nextProfile = typeof updater === 'function' ? updater(currentUser) : updater;
+    const nextProfile = typeof updater === 'function' ? updater(displayedUser) : updater;
 
-    if (isSupabaseConfigured) {
-      try {
-        const remoteProfile = await updateRemoteProfile(nextProfile);
-        setCurrentUser(remoteProfile);
-        await loadRemotePosts();
-      } catch (error) {
-        setBackendError(error.message);
-      }
-
-      return;
+    try {
+      const remoteProfile = await updateRemoteProfile(nextProfile);
+      setCurrentUser(remoteProfile);
+      await loadRemoteData();
+    } catch (error) {
+      setBackendError(error.message);
     }
-
-    setCurrentUser(nextProfile);
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.ownerId === currentUser.id
-          ? {
-              ...post,
-              author: nextProfile.name,
-              userId: nextProfile.userId,
-              avatar: nextProfile.avatar,
-              avatarImage: nextProfile.avatarImage,
-            }
-          : post,
-      ),
-    );
   };
 
   const togglePost = async (postId, key) => {
-    if (isSupabaseConfigured) {
-      const type = getReactionTypeByKey(key);
-      const post = posts.find((item) => item.id === postId);
+    const type = getReactionTypeByKey(key);
+    const post = posts.find((item) => item.id === postId);
 
-      if (!type || !post) {
-        return;
-      }
-
-      try {
-        const remotePosts = await toggleReaction({
-          active: Boolean(post[key]),
-          currentUserId: currentUser.id,
-          postId,
-          type,
-        });
-        setPosts(remotePosts);
-      } catch (error) {
-        setBackendError(error.message);
-      }
-
+    if (!type || !post) {
       return;
     }
 
-    setPosts((currentPosts) =>
-      currentPosts.map((post) => {
-        if (post.id !== postId) {
-          return post;
-        }
+    try {
+      const remotePosts = await toggleReaction({
+        active: Boolean(post[key]),
+        currentUserId: currentUser.id,
+        postId,
+        type,
+      });
+      setPosts(remotePosts);
+    } catch (error) {
+      setBackendError(error.message);
+    }
+  };
 
-        if (key === 'liked') {
-          return { ...post, liked: !post.liked, likes: post.likes + (post.liked ? -1 : 1) };
-        }
-
-        if (key === 'reposted') {
-          return { ...post, reposted: !post.reposted, reposts: post.reposts + (post.reposted ? -1 : 1) };
-        }
-
-        return { ...post, [key]: !post[key] };
-      }),
-    );
+  const markAllNotificationsRead = async () => {
+    try {
+      const nextNotifications = await markNotificationsRead(currentUser.id);
+      setNotifications(nextNotifications);
+    } catch (error) {
+      setBackendError(error.message);
+    }
   };
 
   const showProfile = () => setActiveView('profile');
@@ -289,20 +231,20 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
     setActiveView('feed');
   };
 
-  const selectAuthor = (author) => {
-    setActiveAuthor(author);
+  const selectAuthor = (authorId) => {
+    setActiveAuthor(authorId);
     setActiveTopic('all');
     setActiveView('feed');
   };
 
   return (
-    <div className="poster-app min-h-screen px-4 py-4 text-text sm:px-6 lg:px-8" data-density={compactMode ? 'compact' : 'default'}>
-      <header className="poster-header relative z-50 mx-auto mb-5 flex max-w-[var(--shell-width)] items-center gap-3 rounded-sqd-md border border-border bg-bg-soft/90 px-3 py-3 backdrop-blur-md">
-        <button aria-label="Открыть ленту" className="flex items-center gap-3 text-left" onClick={showFeed} type="button">
-          <span className="grid h-10 w-10 place-items-center rounded-sqd-sm border border-border bg-accent-soft font-ui text-sm font-bold leading-none text-text">
+    <div className="poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-6 sm:py-4 lg:px-8" data-density={compactMode ? 'compact' : 'default'}>
+      <header className="poster-header sticky top-3 z-50 mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-md border border-border bg-bg-soft/92 px-3 py-3 shadow-[var(--shadow-panel)] backdrop-blur-md sm:gap-3">
+        <button aria-label="Открыть ленту" className="flex min-w-0 items-center gap-3 text-left" onClick={showFeed} type="button">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sqd-sm border border-border bg-accent-soft font-ui text-sm font-bold leading-none text-text">
             SQD
           </span>
-          <span className="hidden font-display text-2xl font-extrabold uppercase leading-none text-text sm:block">
+          <span className="hidden truncate font-display text-2xl font-extrabold uppercase leading-none text-text sm:block">
             default squad<span className="text-accent">.</span>
           </span>
         </button>
@@ -320,7 +262,7 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
 
         <div className="relative" ref={notificationsRef}>
           <IconButton
-            active={notificationCount > 0 || notificationsOpen}
+            active={unreadNotifications > 0 || notificationsOpen}
             icon={Bell}
             label="Уведомления"
             onClick={() => {
@@ -328,32 +270,49 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
               setSettingsOpen(false);
             }}
           >
-            {notificationCount > 0 ? notificationCount : null}
+            {unreadNotifications > 0 ? unreadNotifications : null}
           </IconButton>
           {notificationsOpen ? (
-            <Panel className="absolute right-0 top-12 z-[60] w-72 p-3">
+            <Panel className="absolute right-0 top-12 z-[60] w-[min(20rem,calc(100vw-1.5rem))] p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="font-ui text-sm font-bold text-text">Уведомления</p>
                 <button
-                  className="font-ui text-xs font-semibold text-text-soft hover:text-text"
-                  onClick={() => setNotificationsRead(true)}
+                  className="font-ui text-xs font-semibold text-text-soft hover:text-text disabled:cursor-not-allowed disabled:text-muted"
+                  disabled={unreadNotifications === 0}
+                  onClick={markAllNotificationsRead}
                   type="button"
                 >
                   Прочитать
                 </button>
               </div>
-              <div className="grid gap-2">
-                {['Nika ответила на пост', 'Ray сделал репост', 'Ari добавил вас в диалог'].map((item) => (
-              <div className="rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-sm text-text-soft" key={item}>
-                    {item}
-                  </div>
-                ))}
+              <div className="grid max-h-80 gap-2 overflow-y-auto pr-1">
+                {notifications.length > 0 ? (
+                  notifications.map((item) => (
+                    <div
+                      className={[
+                        'flex gap-2 rounded-sqd-xs border p-3 text-sm',
+                        item.readAt ? 'border-border bg-surface-2/70 text-text-soft' : 'border-border-strong bg-accent-soft text-text',
+                      ].join(' ')}
+                      key={item.id}
+                    >
+                      <Avatar image={item.actorAvatarImage} label={item.actorAvatar} size="sm" />
+                      <div className="min-w-0">
+                        <p className="leading-5">{item.text}</p>
+                        <p className="mt-1 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted">{item.time}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
+                    Новых уведомлений нет.
+                  </p>
+                )}
               </div>
             </Panel>
           ) : null}
         </div>
 
-        <div className="relative" ref={settingsRef}>
+        <div className="relative hidden sm:block" ref={settingsRef}>
           <IconButton
             active={settingsOpen}
             icon={Settings}
@@ -383,11 +342,9 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
           ) : null}
         </div>
 
-        {isSupabaseConfigured ? (
-          <IconButton icon={LogOut} label="Выйти" onClick={onSignOut} />
-        ) : null}
+        <IconButton icon={LogOut} label="Выйти" onClick={onSignOut} />
 
-        <button aria-label="Открыть профиль" onClick={showProfile} type="button">
+        <button aria-label="Открыть профиль" className="hidden sm:block" onClick={showProfile} type="button">
           <Avatar image={displayedUser.avatarImage} label={displayedUser.avatar} active />
         </button>
       </header>
@@ -411,12 +368,12 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
 
       {!backendReady ? (
         <div className="mx-auto mb-4 max-w-[var(--shell-width)] rounded-sqd-sm border border-border bg-surface/80 px-3 py-2 font-ui text-sm text-text-soft">
-          Загружаем ленту из Supabase...
+          Загружаем данные из Supabase...
         </div>
       ) : null}
 
       <main className="mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-4 lg:self-start">
+        <aside className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
           <ProfilePanel
             activeView={activeView}
             currentUser={displayedUser}
@@ -441,6 +398,7 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
         ) : (
           <Feed
             activeAuthor={activeAuthor}
+            authors={authorFilters}
             compactMode={compactMode}
             currentUser={displayedUser}
             onAddPost={addPost}
@@ -452,6 +410,30 @@ export default function AppShell({ authenticatedUser = null, authError = '', onS
           />
         )}
       </main>
+
+      <nav className="fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden" aria-label="Мобильная навигация">
+        {mobileNavigation.map((item) => {
+          const Icon = item.icon;
+          const active = activeView === item.target;
+
+          return (
+            <button
+              className={[
+                'flex min-h-12 flex-col items-center justify-center gap-1 rounded-sqd-xs border px-2 py-2 font-ui text-[0.68rem] font-bold transition',
+                active
+                  ? 'border-border-strong bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]'
+                  : 'border-border bg-surface-2/70 text-text-soft',
+              ].join(' ')}
+              key={item.target}
+              onClick={() => setActiveView(item.target)}
+              type="button"
+            >
+              <Icon size={17} strokeWidth={1.8} />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

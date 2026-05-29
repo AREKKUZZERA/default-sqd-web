@@ -87,7 +87,18 @@ export default function App() {
     }
   };
 
-  if (isSupabaseConfigured && !profile) {
+  if (!isSupabaseConfigured) {
+    return (
+      <AuthScreen
+        error="Supabase не настроен. Добавьте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY в GitHub Pages environment."
+        loading={false}
+        onSignIn={() => {}}
+        supabaseReady={false}
+      />
+    );
+  }
+
+  if (!profile) {
     return (
       <AuthScreen
         error={authError}

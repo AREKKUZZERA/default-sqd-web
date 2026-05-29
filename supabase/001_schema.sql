@@ -1,6 +1,6 @@
--- DEFAULT SQD WEB / Supabase schema
--- MVP mode: public demo policies are enabled so the static GitHub Pages frontend can read/write with the anon key.
--- Before production, replace these policies with Supabase Auth based checks.
+-- DEFAULT SQD WEB / Supabase base schema
+-- Release mode: tables are created with RLS enabled.
+-- Run 004_closed_auth.sql and 006_release_features.sql to add authenticated policies and live features.
 
 create extension if not exists pgcrypto;
 
@@ -93,42 +93,18 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- Public demo policies. Good for a free MVP/demo; not safe for a real production community.
+-- Release mode does not create public anon write policies.
+-- Keep old public/demo policies removed if this schema is re-run on an existing project.
 drop policy if exists "profiles_select_public" on public.profiles;
-create policy "profiles_select_public" on public.profiles for select using (true);
-
 drop policy if exists "profiles_insert_public" on public.profiles;
-create policy "profiles_insert_public" on public.profiles for insert with check (true);
-
 drop policy if exists "profiles_update_public" on public.profiles;
-create policy "profiles_update_public" on public.profiles for update using (true) with check (true);
-
 drop policy if exists "posts_select_public" on public.posts;
-create policy "posts_select_public" on public.posts for select using (true);
-
 drop policy if exists "posts_insert_public" on public.posts;
-create policy "posts_insert_public" on public.posts for insert with check (true);
-
 drop policy if exists "posts_update_public" on public.posts;
-create policy "posts_update_public" on public.posts for update using (true) with check (true);
-
 drop policy if exists "posts_delete_public" on public.posts;
-create policy "posts_delete_public" on public.posts for delete using (true);
-
 drop policy if exists "comments_select_public" on public.comments;
-create policy "comments_select_public" on public.comments for select using (true);
-
 drop policy if exists "comments_insert_public" on public.comments;
-create policy "comments_insert_public" on public.comments for insert with check (true);
-
 drop policy if exists "comments_delete_public" on public.comments;
-create policy "comments_delete_public" on public.comments for delete using (true);
-
 drop policy if exists "post_reactions_select_public" on public.post_reactions;
-create policy "post_reactions_select_public" on public.post_reactions for select using (true);
-
 drop policy if exists "post_reactions_insert_public" on public.post_reactions;
-create policy "post_reactions_insert_public" on public.post_reactions for insert with check (true);
-
 drop policy if exists "post_reactions_delete_public" on public.post_reactions;
-create policy "post_reactions_delete_public" on public.post_reactions for delete using (true);

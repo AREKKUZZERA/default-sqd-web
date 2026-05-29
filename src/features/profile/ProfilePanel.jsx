@@ -1,10 +1,11 @@
-import { Home, Link2, MapPin, MessageCircle } from 'lucide-react';
+import { Home, Link2, MessageCircle, UserCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
+  { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
 export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, trends }) {
@@ -25,18 +26,16 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
               <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
             </button>
             <span className="rounded-sqd-xs border border-positive/45 bg-positive-soft px-3 py-2 text-xs font-bold uppercase text-positive">
-              Online
+              {currentUser.status || 'online'}
             </span>
           </div>
 
           <button className="mt-4 block w-full text-left" onClick={onOpenProfile} type="button">
             <h2 className="poster-title font-display text-4xl leading-none text-text">{currentUser.name}</h2>
-            <p className="mt-1 font-mono text-[0.68rem] text-muted">
-              @{currentUser.userId}
-            </p>
+            <p className="mt-1 font-mono text-[0.68rem] text-muted">@{currentUser.userId}</p>
           </button>
 
-          <p className="mt-4 text-sm leading-6 text-text-soft">{currentUser.bio}</p>
+          <p className="mt-4 text-sm leading-6 text-text-soft">{currentUser.bio || 'Профиль пока без описания.'}</p>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             {currentUser.stats.map((stat) => (
@@ -49,11 +48,11 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
 
           <div className="mt-4 grid gap-2 text-sm text-text-soft">
             <span className="inline-flex items-center gap-2">
-              <MapPin size={15} strokeWidth={1.8} /> Lisbon / remote
+              <UserCircle size={15} strokeWidth={1.8} /> {currentUser.role || 'Member'}
             </span>
             <span className="inline-flex min-w-0 items-center gap-2">
               <Link2 size={15} strokeWidth={1.8} />
-              <span className="truncate">defaultsquad.app/{currentUser.userId}</span>
+              <span className="truncate">profile/{currentUser.userId}</span>
             </span>
           </div>
         </div>
@@ -87,20 +86,26 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
       <Panel className="hidden p-4 lg:block">
         <div className="mb-3">
           <h2 className="font-ui text-base font-bold text-text">Темы</h2>
-          <p className="mt-1 text-sm text-muted">Быстрый переход по ленте</p>
+          <p className="mt-1 text-sm text-muted">Хештеги из настоящих постов</p>
         </div>
         <div className="grid gap-2">
-          {trends.map((trend) => (
-            <button
-              className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
-              key={trend.tag}
-              onClick={() => onSelectTopic(trend.tag)}
-              type="button"
-            >
-              <p className="font-ui text-sm font-bold text-text">{trend.label}</p>
-              <p className="mt-1 font-mono text-[0.64rem] uppercase tracking-[0.08em] text-muted">{trend.count}</p>
-            </button>
-          ))}
+          {trends.length > 0 ? (
+            trends.map((trend) => (
+              <button
+                className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
+                key={trend.tag}
+                onClick={() => onSelectTopic(trend.tag)}
+                type="button"
+              >
+                <p className="font-ui text-sm font-bold text-text">{trend.label}</p>
+                <p className="mt-1 font-mono text-[0.64rem] uppercase tracking-[0.08em] text-muted">{trend.count}</p>
+              </button>
+            ))
+          ) : (
+            <p className="rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-sm text-text-soft">
+              Темы появятся после публикации постов.
+            </p>
+          )}
         </div>
       </Panel>
     </div>

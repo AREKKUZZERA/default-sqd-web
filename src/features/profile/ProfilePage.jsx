@@ -5,7 +5,7 @@ import Panel from '../../shared/ui/Panel.jsx';
 import SectionTitle from '../../shared/ui/SectionTitle.jsx';
 import PostCard from '../feed/PostCard.jsx';
 
-const USER_ID_PATTERN = /^[A-Za-z_-]+$/;
+const USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_AVATAR_SIZE = 256 * 1024;
 const MAX_BANNER_SIZE = 1024 * 1024;
 
@@ -47,6 +47,7 @@ export default function ProfilePage({ currentUser, people, posts, onCommentPost,
   const [formError, setFormError] = useState('');
   const [uploadError, setUploadError] = useState('');
 
+
   const usedUserIds = useMemo(
     () => new Set(people.filter((person) => person.id !== currentUser.id).map((person) => person.userId.toLowerCase())),
     [currentUser.id, people],
@@ -74,7 +75,7 @@ export default function ProfilePage({ currentUser, people, posts, onCommentPost,
     }
 
     if (!USER_ID_PATTERN.test(normalizedUserId)) {
-      setFormError('ID может содержать только латиницу, дефис и нижнее подчеркивание.');
+      setFormError('ID может содержать только латиницу, цифры, дефис и нижнее подчеркивание.');
       return;
     }
 

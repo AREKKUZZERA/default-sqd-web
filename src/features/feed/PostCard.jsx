@@ -8,7 +8,7 @@ export default function PostCard({ compact = false, post, onComment, onToggle })
   const [commentOpen, setCommentOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [shared, setShared] = useState(false);
-  const replyCount = post.replies + post.comments.length;
+  const replyCount = post.comments.length;
   const commentsId = `post-comments-${post.id}`;
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
 

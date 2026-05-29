@@ -117,10 +117,7 @@ button {
 }
 
 .poster-app::after {
-  content: 'V2_2026';
-  bottom: 4rem;
-  right: 2rem;
-  transform: rotate(90deg);
+  content: none;
 }
 
 .poster-header {
@@ -136,7 +133,7 @@ button {
   display: flex;
   justify-content: space-between;
   color: var(--color-muted);
-  content: '_TAOBAO_COM   DESIGN_PROJECT   LOOKUP_PACK   VOL_02';
+  content: none;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 800;
@@ -462,5 +459,23 @@ button {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Release cleanup: no decorative fake labels or watermark-like text. */
+.poster-app::before,
+.poster-app::after,
+.poster-header::before,
+.poster-panel::before {
+  content: none !important;
+}
+
+@media (max-width: 1023px) {
+  .poster-header {
+    top: 0.75rem;
+  }
+
+  .poster-title {
+    line-height: 0.95;
   }
 }

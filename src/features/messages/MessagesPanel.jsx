@@ -1,21 +1,95 @@
 import { MessageSquarePlus, Search, SendHorizonal } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { conversations as seedConversations, initialMessages } from '../../shared/data/socialData.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createDirectConversation,
+  fetchConversations,
+  fetchMessages,
+  markConversationRead,
+  sendDirectMessage,
+} from '../../shared/api/socialApi.js';
+import { supabase } from '../../shared/lib/supabase.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 
 function getParticipant(conversation, people) {
-  return people.find((person) => person.id === conversation.participantId);
+  return conversation.participant || people.find((person) => person.id === conversation.participantId);
 }
 
 export default function MessagesPanel({ currentUser, expanded = false, people = [] }) {
-  const [activeId, setActiveId] = useState(seedConversations[0]?.id);
-  const [conversations, setConversations] = useState(seedConversations);
+  const [activeId, setActiveId] = useState(null);
+  const [conversations, setConversations] = useState([]);
   const [draft, setDraft] = useState('');
-  const [messagesByConversation, setMessagesByConversation] = useState(initialMessages);
+  const [messagesByConversation, setMessagesByConversation] = useState({});
   const [query, setQuery] = useState('');
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadConversations = useCallback(async () => {
+    if (!currentUser?.id) {
+      return;
+    }
+
+    try {
+      setError('');
+      const items = await fetchConversations(currentUser.id);
+      setConversations(items);
+      setActiveId((currentActiveId) => currentActiveId || items[0]?.id || null);
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser.id]);
+
+  const loadActiveMessages = useCallback(async (conversationId = activeId) => {
+    if (!conversationId) {
+      return;
+    }
+
+    try {
+      setError('');
+      const messages = await fetchMessages(conversationId);
+      setMessagesByConversation((items) => ({ ...items, [conversationId]: messages }));
+      await markConversationRead({ conversationId, currentUserId: currentUser.id });
+    } catch (loadError) {
+      setError(loadError.message);
+    }
+  }, [activeId, currentUser.id]);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadConversations);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      return undefined;
+    }
+
+    const reloadMessages = () => {
+      void loadConversations();
+      void loadActiveMessages();
+    };
+
+    const channel = supabase
+      .channel(`default-sqd-messages-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_members' }, reloadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, reloadMessages)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, loadActiveMessages, loadConversations]);
+
+  useEffect(() => {
+    if (!activeId || messagesByConversation[activeId]) {
+      return;
+    }
+
+    void Promise.resolve().then(() => loadActiveMessages(activeId));
+  }, [activeId, loadActiveMessages, messagesByConversation]);
 
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -29,30 +103,36 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
 
   const availablePeople = useMemo(() => {
     const activeParticipantIds = new Set(conversations.map((conversation) => conversation.participantId));
-    return people.filter((person) => person.id !== currentUser?.id && !activeParticipantIds.has(person.id));
-  }, [conversations, currentUser?.id, people]);
+    return people.filter((person) => person.id !== currentUser.id && !activeParticipantIds.has(person.id));
+  }, [conversations, currentUser.id, people]);
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeId) ?? conversations[0];
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
   const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
 
-  const createChat = (person) => {
-    const id = `chat_${person.userId}_${conversations.length + 1}`;
-    const nextConversation = {
-      id,
-      participantId: person.id,
-      message: `Диалог с ${person.name} создан.`,
-      time: 'сейчас',
-      unread: 0,
-    };
-
-    setConversations((items) => [nextConversation, ...items]);
-    setMessagesByConversation((items) => ({ ...items, [id]: [] }));
-    setActiveId(id);
-    setDirectoryOpen(false);
+  const createChat = async (person) => {
+    try {
+      setError('');
+      const id = await createDirectConversation(currentUser.id, person.id);
+      setActiveId(id);
+      setDirectoryOpen(false);
+      await loadConversations();
+    } catch (createError) {
+      setError(createError.message);
+    }
   };
 
-  const handleSend = (event) => {
+  const selectConversation = async (conversationId) => {
+    setActiveId(conversationId);
+    try {
+      await markConversationRead({ conversationId, currentUserId: currentUser.id });
+      await loadConversations();
+    } catch (readError) {
+      setError(readError.message);
+    }
+  };
+
+  const handleSend = async (event) => {
     event.preventDefault();
     const text = draft.trim();
 
@@ -60,19 +140,15 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       return;
     }
 
-    setMessagesByConversation((items) => ({
-      ...items,
-      [activeConversation.id]: [
-        ...(items[activeConversation.id] ?? []),
-        { id: `${activeConversation.id}_${(items[activeConversation.id] ?? []).length + 1}`, authorId: currentUser.id, body: text },
-      ],
-    }));
-    setConversations((items) =>
-      items.map((conversation) =>
-        conversation.id === activeConversation.id ? { ...conversation, message: text, time: 'сейчас', unread: 0 } : conversation,
-      ),
-    );
-    setDraft('');
+    try {
+      setError('');
+      const messages = await sendDirectMessage({ conversationId: activeConversation.id, currentUserId: currentUser.id, text });
+      setMessagesByConversation((items) => ({ ...items, [activeConversation.id]: messages }));
+      setDraft('');
+      await loadConversations();
+    } catch (sendError) {
+      setError(sendError.message);
+    }
   };
 
   return (
@@ -80,8 +156,8 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       {expanded ? (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="y2k-label mb-2">compact_disc / chat</span>
-            <h1 className="poster-title font-display text-5xl leading-none text-text">Сообщения</h1>
+            <span className="y2k-label mb-2">direct_messages / live</span>
+            <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Сообщения</h1>
           </div>
           <button
             className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
@@ -123,65 +199,64 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                     onClick={() => createChat(person)}
                     type="button"
                   >
-                    <Avatar active={person.status === 'online'} label={person.avatar} size="sm" />
+                    <Avatar active={person.status === 'online'} image={person.avatarImage} label={person.avatar} size="sm" />
                     <span className="min-w-0">
                       <span className="block font-ui text-sm font-bold text-text">{person.name}</span>
-                      <span className="block font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">
-                        @{person.userId}
-                      </span>
+                      <span className="block font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">@{person.userId}</span>
                     </span>
                   </button>
                 ))
               ) : (
                 <p className="rounded-sqd-xs border border-border bg-surface-2/70 p-3 text-sm text-text-soft">
-                  Все доступные контакты уже в диалогах.
+                  Нет доступных участников для нового диалога.
                 </p>
               )}
             </div>
           ) : null}
+
+          {error ? <p className="mt-3 rounded-sqd-xs border border-warning/40 bg-warning/10 p-3 text-sm text-warning">{error}</p> : null}
         </div>
 
         <div className={['grid', expanded ? 'lg:grid-cols-[280px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
           <div className="grid max-h-[520px] content-start overflow-y-auto border-border lg:border-r">
-            {filteredConversations.map((conversation) => {
-              const participant = getParticipant(conversation, people);
+            {loading ? (
+              <p className="p-4 text-sm text-text-soft">Загружаем диалоги...</p>
+            ) : filteredConversations.length > 0 ? (
+              filteredConversations.map((conversation) => {
+                const participant = getParticipant(conversation, people);
 
-              if (!participant) {
-                return null;
-              }
+                if (!participant) {
+                  return null;
+                }
 
-              return (
-                <button
-                  className={[
-                    'flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 text-left transition last:border-b-0',
-                    activeId === conversation.id ? 'bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]' : 'bg-transparent hover:bg-white/[0.025]',
-                  ].join(' ')}
-                  key={conversation.id}
-                  onClick={() => {
-                    setActiveId(conversation.id);
-                    setConversations((items) =>
-                      items.map((item) => (item.id === conversation.id ? { ...item, unread: 0 } : item)),
-                    );
-                  }}
-                  type="button"
-                >
-                  <Avatar active={participant.status === 'online'} label={participant.avatar} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-ui text-sm font-bold text-text">
-                      {participant.name}
+                return (
+                  <button
+                    className={[
+                      'flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 text-left transition last:border-b-0',
+                      activeId === conversation.id ? 'bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]' : 'bg-transparent hover:bg-white/[0.025]',
+                    ].join(' ')}
+                    key={conversation.id}
+                    onClick={() => selectConversation(conversation.id)}
+                    type="button"
+                  >
+                    <Avatar active={participant.status === 'online'} image={participant.avatarImage} label={participant.avatar} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-ui text-sm font-bold text-text">{participant.name}</span>
+                      <span className={['block truncate text-xs', activeId === conversation.id ? 'text-text-soft' : 'text-muted'].join(' ')}>
+                        {conversation.message}
+                      </span>
                     </span>
-                    <span className={['block truncate text-xs', activeId === conversation.id ? 'text-text-soft' : 'text-muted'].join(' ')}>
-                      {conversation.message}
-                    </span>
-                  </span>
-                  {conversation.unread ? (
-                    <span className="grid h-5 min-w-5 place-items-center rounded-full border border-positive/45 bg-positive-soft px-1 font-mono text-[0.6rem] text-positive">
-                      {conversation.unread}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+                    {conversation.unread ? (
+                      <span className="grid h-5 min-w-5 place-items-center rounded-full border border-positive/45 bg-positive-soft px-1 font-mono text-[0.6rem] text-positive">
+                        {conversation.unread}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="p-4 text-sm text-text-soft">Диалогов пока нет. Создайте первый чат.</p>
+            )}
           </div>
 
           <div className="min-w-0 p-4">
@@ -203,12 +278,13 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                       return (
                         <div
                           className={[
-                            'max-w-[78%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                            'max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
                             own ? 'ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
                           ].join(' ')}
                           key={message.id}
                         >
-                          {message.body}
+                          <p>{message.body}</p>
+                          <p className="mt-1 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">{message.time}</p>
                         </div>
                       );
                     })
@@ -222,6 +298,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
                 <form className="mt-4 flex gap-2" onSubmit={handleSend}>
                   <input
                     className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
+                    maxLength={1000}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder="Сообщение"
                     value={draft}

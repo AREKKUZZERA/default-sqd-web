@@ -1,82 +1,42 @@
-# DEFAULT-SQD-WEB
+# DEFAULT SQD WEB
 
-Frontend: React + Vite + Tailwind CSS.
-Backend for the social feed: Supabase.
-Deploy target: GitHub Pages.
+Closed social feed frontend for GitHub Pages + Supabase.
 
-## Local start
+## Local setup
 
 ```bash
 npm install
+cp .env.example .env
 npm run dev
 ```
 
-Without Supabase env variables the app runs in local mock mode.
-
-## Supabase env
-
-Create `.env.local`:
+`.env` must contain:
 
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 ```
 
-Then run:
+## Release build
 
 ```bash
-npm run dev
+npm run check
 ```
 
-## Supabase SQL setup
+GitHub Pages deploy is configured in `.github/workflows/deploy.yml`.
 
-Open Supabase Dashboard → SQL Editor and run:
+## Supabase release setup
+
+Run SQL files in this order:
 
 1. `supabase/001_schema.sql`
-2. `supabase/002_seed.sql`
-3. `supabase/003_storage.sql` optional
+2. `supabase/004_closed_auth.sql`
+3. `supabase/006_release_features.sql`
+4. `supabase/005_storage_auth.sql` optional
+5. `supabase/007_remove_demo_content.sql`
 
-Current RLS policies are open for a demo/MVP so GitHub Pages can work with the anon key. Tighten them before a real public production launch.
+Do not run demo seeds for release. `supabase/002_seed.sql` is intentionally a no-op.
 
-## GitHub Pages release
+## Accounts
 
-The workflow is already in `.github/workflows/deploy.yml`.
-
-For Supabase-backed builds, add these repository variables in GitHub:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Then push to `main`:
-
-```bash
-npm run release
-git add .
-git commit -m "Prepare GitHub Pages release with Supabase"
-git push origin main
-```
-
-## Scripts
-
-```bash
-npm run dev          # local dev server
-npm run build        # production build
-npm run preview      # preview production build
-npm run lint         # eslint
-npm run release      # lint + build
-```
-
-Supabase CLI helpers are included for later:
-
-```bash
-npm run supabase:link
-npm run supabase:db:push
-npm run supabase:db:reset
-```
-
-
-## Closed authentication
-
-This project uses Supabase Auth for the release build. The published app shows a login screen when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured.
-
-Run the Supabase scripts in `supabase/` and then create users in Supabase Dashboard -> Authentication -> Users. Do not commit passwords, service-role keys, or real credentials to the repository.
+Create real users in Supabase Dashboard -> Authentication -> Users. Registration on the site is disabled; only admin-created accounts can sign in.

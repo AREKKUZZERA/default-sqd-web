@@ -1,5 +1,5 @@
 -- DEFAULT SQD WEB / Closed Auth migration
--- Run after 001_schema.sql and 002_seed.sql.
+-- Run after 001_schema.sql. Do not seed demo data for release builds.
 -- This migration closes public table access and allows reads/writes only for authenticated users.
 -- Passwords are never stored in this repository. Create users in Supabase Dashboard -> Authentication -> Users.
 
@@ -120,6 +120,14 @@ on public.post_reactions
 for delete
 to authenticated
 using (user_id = auth.uid()::text);
+
+drop policy if exists "post_reactions_update_own" on public.post_reactions;
+create policy "post_reactions_update_own"
+on public.post_reactions
+for update
+to authenticated
+using (user_id = auth.uid()::text)
+with check (user_id = auth.uid()::text);
 
 -- Auto-create a profile when an admin creates a Supabase Auth user.
 -- The frontend also has a defensive ensureProfileForSession() call for existing accounts.
