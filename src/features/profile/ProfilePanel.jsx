@@ -13,7 +13,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
 
   return (
     <div className="grid gap-4">
-      <Panel className="overflow-hidden">
+      <Panel className="profile-mini-card overflow-hidden">
         <button className="block w-full text-left" onClick={onOpenProfile} type="button">
           <div
             className="poster-band h-24 border-b border-border bg-cover bg-center"
@@ -32,15 +32,15 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
           </div>
 
           <button className="mt-4 block w-full text-left" onClick={onOpenProfile} type="button">
-            <h2 className="poster-title font-display text-4xl leading-none text-text">{currentUser.name}</h2>
+            <h2 className="profile-mini-name poster-title font-display text-4xl leading-none text-text">{currentUser.name}</h2>
             <p className="mt-1 font-mono text-[0.68rem] text-muted">@{currentUser.userId}</p>
           </button>
 
-          <p className="mt-4 text-sm leading-6 text-text-soft">{currentUser.bio || 'Профиль пока без описания.'}</p>
+          <p className="profile-mini-bio mt-4 text-sm leading-6 text-text-soft">{currentUser.bio || 'Профиль пока без описания.'}</p>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             {currentUser.stats.map((stat) => (
-              <div className="rounded-sqd-sm border border-border bg-surface-2/65 p-3" key={stat.label}>
+              <div className="profile-mini-stat rounded-sqd-sm border border-border bg-surface-2/65 p-3" key={stat.label}>
                 <p className="font-ui text-lg font-bold text-text">{stat.value}</p>
                 <p className="mt-1 text-xs font-medium text-muted">{stat.label}</p>
               </div>
@@ -89,7 +89,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
           {visibleTrends.length > 0 ? (
             visibleTrends.map((trend) => (
               <button
-                className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
+                className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-3/80 hover:shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
                 key={trend.tag}
                 onClick={() => onSelectTopic(trend.tag)}
                 type="button"

@@ -6,6 +6,33 @@ import SectionTitle from '../../shared/ui/SectionTitle.jsx';
 import PostCard from '../feed/PostCard.jsx';
 
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function getProfileActivityLabel(post, profileUser) {
+  if (!profileUser?.id) {
+    return '';
+  }
+
+  const name = profileUser.name || profileUser.userId || 'Пользователь';
+
+  if (post.ownerId === profileUser.id) {
+    return `${name} опубликовал(а) пост`;
+  }
+
+  if (post.repostedBy?.includes(profileUser.id)) {
+    return `${name} сделал(а) репост`;
+  }
+
+  if (post.likedBy?.includes(profileUser.id)) {
+    return `${name} лайкнул(а) запись`;
+  }
+
+  if (post.bookmarkedBy?.includes(profileUser.id)) {
+    return `${name} сохранил(а) запись`;
+  }
+
+  return '';
+}
+
 const IMAGE_PRESETS = {
   avatarImage: {
     help: 'Квадратное фото, лучше 512x512 или больше.',
@@ -416,7 +443,7 @@ export default function ProfilePage({
           ) : null}
 
           <div className="mt-5">
-            <h1 className="poster-title font-display text-5xl leading-none text-text">{profileUser.name}</h1>
+            <h1 className="profile-page-name poster-title font-display text-5xl leading-none text-text">{profileUser.name}</h1>
             <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">
               @{profileUser.userId} / {profileUser.role}
             </p>
@@ -425,7 +452,7 @@ export default function ProfilePage({
 
           <div className="mt-5 grid gap-2 sm:grid-cols-3">
             {profileUser.stats.map((stat) => (
-              <div className="rounded-sqd-sm border border-border bg-surface-2/65 p-4" key={stat.label}>
+              <div className="profile-stat-card rounded-sqd-sm border border-border bg-surface-2/65 p-4" key={stat.label}>
                 <p className="font-ui text-2xl font-bold text-text">{stat.value}</p>
                 <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-[0.1em] text-muted">{stat.label}</p>
               </div>
@@ -450,6 +477,7 @@ export default function ProfilePage({
               onUpdateComment={onUpdateComment}
               onUpdatePost={onUpdatePost}
               post={post}
+              activityLabel={getProfileActivityLabel(post, profileUser)}
             />
           ))
         ) : (

@@ -17,6 +17,7 @@ export default function PostCard({
   onToggle,
   onUpdateComment,
   onUpdatePost,
+  activityLabel = '',
 }) {
   const [commentOpen, setCommentOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -37,6 +38,7 @@ export default function PostCard({
   const commentsId = `post-comments-${post.id}`;
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
   const isOwner = currentUser?.id === post.ownerId;
+  const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
 
   const handleCommentSubmit = async (event) => {
     event.preventDefault();
@@ -179,7 +181,13 @@ export default function PostCard({
   };
 
   return (
-    <Panel as="article" className={[compact ? 'p-3' : 'p-3.5 sm:p-4', 'transition hover:border-border-strong hover:bg-surface/95'].join(' ')}>
+    <Panel as="article" className={[compact ? 'p-3' : 'p-3.5 sm:p-4', cardTone, 'post-card transition hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface/95 hover:shadow-[0_18px_44px_rgba(0,0,0,0.32)]'].join(' ')}>
+      {activityLabel ? (
+        <div className="activity-ribbon mb-3 flex flex-wrap items-center gap-2 rounded-sqd-sm border border-border bg-bg-soft/55 px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft">
+          <span className="activity-ribbon__dot" aria-hidden="true" />
+          {activityLabel}
+        </div>
+      ) : null}
       <div className="flex gap-2.5 sm:gap-3">
         <button
           aria-label={`Открыть профиль ${post.author}`}
@@ -198,11 +206,11 @@ export default function PostCard({
             >
               {post.author}
             </button>
-            <span className="font-mono text-[0.66rem] uppercase tracking-[0.08em] text-muted">
+            <span className="post-meta font-mono text-[0.66rem] uppercase tracking-[0.08em] text-muted">
               @{post.userId} / {post.time}
             </span>
             {tags.map((tag) => (
-              <span className="rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.56rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
+              <span className="post-tag rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.56rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
                 #{tag}
               </span>
             ))}
@@ -269,7 +277,7 @@ export default function PostCard({
 
           {postError ? <p className="mt-2 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{postError}</p> : null}
 
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-2.5">
+          <div className="post-actions mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-2.5">
             <IconButton active={post.liked} icon={Heart} label="Лайк" onClick={() => handleToggle('liked')}>
               {post.likes}
             </IconButton>
@@ -328,7 +336,7 @@ export default function PostCard({
                   const busy = busyCommentId === comment.id;
 
                   return (
-                  <div className="flex gap-2 rounded-sqd-sm border border-border bg-bg-soft/80 p-2.5" key={comment.id}>
+                  <div className={["comment-card flex gap-2 rounded-sqd-sm border p-2.5", ownComment ? "comment-card--own border-positive/25 bg-positive-soft/20" : "border-border bg-bg-soft/80"].join(' ')} key={comment.id}>
                     <button
                       aria-label={`Открыть профиль ${comment.author}`}
                       className="self-start rounded-sqd-sm text-left transition hover:opacity-85"
