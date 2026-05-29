@@ -424,17 +424,26 @@ button {
   }
 
   .poster-app--messages .messages-page-head {
-    margin-bottom: 0.85rem;
-    padding-inline: 0.15rem;
-  }
-
-  .poster-app--messages .messages-page-head .poster-title {
-    font-size: clamp(2.35rem, 12vw, 3.2rem);
+    display: none;
   }
 
   .poster-app--messages .messages-panel {
     min-height: auto;
     border-radius: 1rem;
+  }
+
+  .poster-app--messages .messages-sidebar-header {
+    padding: 0.95rem;
+  }
+
+  .poster-app--messages .messages-sidebar-header > div:first-child {
+    margin-bottom: 0.85rem;
+    align-items: center;
+  }
+
+  .poster-app--messages .messages-sidebar-new-chat {
+    max-width: 10rem;
+    white-space: nowrap;
   }
 
   .poster-app--messages .messages-layout {

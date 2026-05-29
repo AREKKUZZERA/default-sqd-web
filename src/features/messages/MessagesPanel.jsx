@@ -455,7 +455,7 @@ export default function MessagesPanel({
             <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Сообщения</h1>
           </div>
           <button
-            className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+            className="messages-page-new-chat inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
             onClick={() => setDirectoryOpen((isOpen) => !isOpen)}
             type="button"
           >
@@ -469,9 +469,21 @@ export default function MessagesPanel({
         <div className="messages-sidebar-header border-b border-border p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-ui text-lg font-bold text-text">Диалоги</h2>
-            {!expanded ? (
+            {expanded ? (
+              <button
+                aria-label="Новый чат"
+                aria-pressed={directoryOpen}
+                className="messages-sidebar-new-chat inline-flex h-9 shrink-0 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text sm:hidden"
+                onClick={() => setDirectoryOpen((isOpen) => !isOpen)}
+                title="Новый чат"
+                type="button"
+              >
+                <MessageSquarePlus size={15} strokeWidth={1.8} />
+                <span>новый чат</span>
+              </button>
+            ) : (
               <IconButton active={directoryOpen} icon={MessageSquarePlus} label="Новый чат" onClick={() => setDirectoryOpen((isOpen) => !isOpen)} />
-            ) : null}
+            )}
           </div>
           <label className="flex items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft">
             <Search size={15} strokeWidth={1.8} />
