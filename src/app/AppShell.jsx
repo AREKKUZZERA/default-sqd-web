@@ -65,20 +65,27 @@ const withBasePath = (path) => {
   return normalizedPath === '/' ? `${APP_BASE_PATH}/` : `${APP_BASE_PATH}${normalizedPath}`;
 };
 
+const getHashAppPath = () => {
+  const hashPath = window.location.hash.startsWith('#/') ? window.location.hash.slice(1) : '';
+  return hashPath || '';
+};
+
+const getAppPath = () => getHashAppPath() || stripBasePath();
+
 const getProfileKeyFromPath = () => {
-  const appPath = stripBasePath();
+  const appPath = getAppPath();
   const match = appPath.match(/^\/profile\/([^/]+)\/?$/);
   return match ? decodeURIComponent(match[1]) : '';
 };
 
 const getMessageConversationIdFromPath = () => {
-  const appPath = stripBasePath();
+  const appPath = getAppPath();
   const match = appPath.match(/^\/messages(?:\/([^/]+))?\/?$/);
   return match ? decodeURIComponent(match[1] || '') : null;
 };
 
 const getPostIdFromPath = () => {
-  const appPath = stripBasePath();
+  const appPath = getAppPath();
   const match = appPath.match(/^\/post\/([^/]+)\/?$/);
   return match ? decodeURIComponent(match[1]) : null;
 };
@@ -91,13 +98,21 @@ const getInitialView = () => {
   return 'feed';
 };
 
-const updateBrowserPath = (path) => {
-  const nextPath = withBasePath(path);
+const buildHashPath = (path) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${withBasePath('/')}#${normalizedPath}`;
+};
 
-  if (window.location.pathname !== nextPath) {
-    window.history.pushState({}, '', nextPath);
+const setBrowserPath = (path, replace = false) => {
+  const nextPath = buildHashPath(path);
+
+  if (`${window.location.pathname}${window.location.hash}` !== nextPath) {
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', nextPath);
   }
 };
+
+const updateBrowserPath = (path) => setBrowserPath(path);
+const replaceBrowserPath = (path) => setBrowserPath(path, true);
 
 const getWallPosts = (profileId, posts) =>
   posts.filter(
@@ -633,9 +648,14 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   useEffect(() => {
     const syncRoute = () => {
+      const appPath = getAppPath();
       const profileKey = getProfileKeyFromPath();
       const conversationId = getMessageConversationIdFromPath();
       const postId = getPostIdFromPath();
+
+      if (!getHashAppPath() && appPath !== '/') {
+        replaceBrowserPath(appPath);
+      }
 
       if (profileKey) {
         setSelectedPostId(null);
@@ -659,8 +679,12 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     syncRoute();
 
     window.addEventListener('popstate', syncRoute);
+    window.addEventListener('hashchange', syncRoute);
 
-    return () => window.removeEventListener('popstate', syncRoute);
+    return () => {
+      window.removeEventListener('popstate', syncRoute);
+      window.removeEventListener('hashchange', syncRoute);
+    };
   }, []);
 
   return (
