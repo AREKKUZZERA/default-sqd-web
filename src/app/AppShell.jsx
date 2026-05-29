@@ -66,7 +66,17 @@ const getProfileKeyFromPath = () => {
   return match ? decodeURIComponent(match[1]) : '';
 };
 
-const getInitialView = () => (getProfileKeyFromPath() ? 'profile' : 'feed');
+const getMessageConversationIdFromPath = () => {
+  const appPath = stripBasePath();
+  const match = appPath.match(/^\/messages(?:\/([^/]+))?\/?$/);
+  return match ? decodeURIComponent(match[1] || '') : null;
+};
+
+const getInitialView = () => {
+  if (getProfileKeyFromPath()) return 'profile';
+  if (getMessageConversationIdFromPath() !== null) return 'messages';
+  return 'feed';
+};
 
 const updateBrowserPath = (path) => {
   const nextPath = withBasePath(path);
@@ -92,7 +102,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [activeView, setActiveView] = useState(getInitialView);
   const [currentUser, setCurrentUser] = useState(authenticatedUser);
   const [selectedProfileKey, setSelectedProfileKey] = useState(() => getProfileKeyFromPath() || authenticatedUser.userId || authenticatedUser.id);
-  const [preferredConversationId, setPreferredConversationId] = useState(null);
+  const [preferredConversationId, setPreferredConversationId] = useState(() => getMessageConversationIdFromPath() || null);
   const [people, setPeople] = useState([]);
   const [posts, setPosts] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -223,6 +233,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     return null;
   }, [displayedUser, getProfileWithStats, people, selectedProfileKey]);
 
+  const activeConversationPathId = activeView === 'messages' ? preferredConversationId : null;
   const profileMissing = activeView === 'profile' && backendReady && !selectedProfile;
 
   const authorFilters = useMemo(
@@ -382,13 +393,46 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return;
     }
 
-    const remotePosts = await toggleReaction({
-      active: Boolean(post[key]),
-      currentUserId: currentUser.id,
-      postId,
-      type,
-    });
-    setPosts(remotePosts);
+    const wasActive = Boolean(post[key]);
+    const countKey = type === 'like' ? 'likes' : type === 'repost' ? 'reposts' : null;
+    const listKey = type === 'like' ? 'likedBy' : type === 'repost' ? 'repostedBy' : 'bookmarkedBy';
+    const previousPosts = posts;
+
+    setPosts((items) =>
+      items.map((item) => {
+        if (item.id !== postId) {
+          return item;
+        }
+
+        const nextList = wasActive
+          ? (item[listKey] || []).filter((id) => id !== currentUser.id)
+          : Array.from(new Set([...(item[listKey] || []), currentUser.id]));
+
+        return {
+          ...item,
+          [key]: !wasActive,
+          [listKey]: nextList,
+          ...(countKey
+            ? {
+                [countKey]: Math.max(0, item[countKey] + (wasActive ? -1 : 1)),
+              }
+            : {}),
+        };
+      }),
+    );
+
+    try {
+      const remotePosts = await toggleReaction({
+        active: wasActive,
+        currentUserId: currentUser.id,
+        postId,
+        type,
+      });
+      setPosts(remotePosts);
+    } catch (error) {
+      setPosts(previousPosts);
+      setBackendError(error.message);
+    }
   };
 
   const markAllNotificationsRead = async () => {
@@ -400,11 +444,16 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     }
   };
 
-  const clearPreferredConversation = useCallback(() => {
-    setPreferredConversationId(null);
+  const clearPreferredConversation = useCallback(() => {}, []);
+
+  const showMessages = useCallback((conversationId = null) => {
+    setActiveView('messages');
+    setPreferredConversationId(conversationId);
+    updateBrowserPath(conversationId ? `/messages/${encodeURIComponent(conversationId)}` : '/messages');
   }, []);
 
   const showProfile = (profileId = currentUser.id) => {
+    setPreferredConversationId(null);
     const profile = people.find((person) => person.id === profileId || person.userId === profileId);
     const isOwnProfile = profileId === currentUser.id || profileId === currentUser.userId;
     const profileKey = profile?.userId || (isOwnProfile ? displayedUser.userId : profileId);
@@ -414,6 +463,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   };
   const showOwnProfile = () => showProfile(currentUser.id);
   const showFeed = () => {
+    setPreferredConversationId(null);
     setActiveView('feed');
     updateBrowserPath('/');
   };
@@ -423,9 +473,19 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return;
     }
 
+    if (target === 'messages') {
+      showMessages(preferredConversationId);
+      return;
+    }
+
     setActiveView(target);
     updateBrowserPath('/');
   };
+
+  const handleConversationChange = useCallback((conversationId) => {
+    setPreferredConversationId(conversationId || null);
+    updateBrowserPath(conversationId ? `/messages/${encodeURIComponent(conversationId)}` : '/messages');
+  }, []);
 
   const startConversation = async (profileId) => {
     if (!profileId || profileId === currentUser.id) {
@@ -435,15 +495,14 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     try {
       setBackendError('');
       const conversationId = await createDirectConversation(currentUser.id, profileId);
-      setPreferredConversationId(conversationId);
-      setActiveView('messages');
-      updateBrowserPath('/');
+      showMessages(conversationId);
     } catch (error) {
       setBackendError(error.message);
     }
   };
 
   const selectTopic = (topic) => {
+    setPreferredConversationId(null);
     setActiveTopic(topic);
     setActiveAuthor('all');
     setActiveView('feed');
@@ -451,6 +510,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   };
 
   const selectAuthor = (authorId) => {
+    setPreferredConversationId(null);
     setActiveAuthor(authorId);
     setActiveTopic('all');
     setActiveView('feed');
@@ -460,6 +520,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   useEffect(() => {
     const syncRoute = () => {
       const profileKey = getProfileKeyFromPath();
+      const conversationId = getMessageConversationIdFromPath();
 
       if (profileKey) {
         setSelectedProfileKey(profileKey);
@@ -467,8 +528,17 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         return;
       }
 
+      if (conversationId !== null) {
+        setPreferredConversationId(conversationId || null);
+        setActiveView('messages');
+        return;
+      }
+
+      setPreferredConversationId(null);
       setActiveView('feed');
     };
+
+    syncRoute();
 
     window.addEventListener('popstate', syncRoute);
 
@@ -476,7 +546,14 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   }, []);
 
   return (
-    <div className="poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-6 sm:py-4 lg:px-8" data-density={compactMode ? 'compact' : 'default'}>
+    <div
+      className={[
+        'poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-6 sm:py-4 lg:px-8',
+        activeView === 'messages' ? 'poster-app--messages' : '',
+      ].join(' ')}
+      data-active-view={activeView}
+      data-density={compactMode ? 'compact' : 'default'}
+    >
       <header className="poster-header sticky top-3 z-50 mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-md border border-border bg-bg-soft/92 px-3 py-3 shadow-[var(--shadow-panel)] backdrop-blur-md sm:gap-3">
         <button aria-label="Открыть ленту" className="flex min-w-0 items-center gap-3 text-left" onClick={showFeed} type="button">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sqd-sm border border-border bg-accent-soft font-ui text-sm font-bold leading-none text-text">
@@ -593,7 +670,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </button>
       </header>
 
-      <label className="mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition-within focus-within:border-border-strong lg:hidden">
+      <label className="poster-mobile-search mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition-within focus-within:border-border-strong lg:hidden">
         <Search size={16} strokeWidth={1.8} />
         <input
           className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
@@ -616,7 +693,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </div>
       ) : null}
 
-      <main className="mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <main className="poster-main mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
           <ProfilePanel
             activeView={activeView}
@@ -632,10 +709,11 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           <MessagesPanel
             currentUser={displayedUser}
             expanded
+            onConversationPathChange={handleConversationChange}
             onOpenProfile={showProfile}
             onPreferredConversationHandled={clearPreferredConversation}
             people={people}
-            preferredConversationId={preferredConversationId}
+            preferredConversationId={activeConversationPathId}
           />
         ) : activeView === 'profile' ? (
           <ProfilePage
@@ -677,7 +755,10 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         )}
       </main>
 
-      <nav className="fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden" aria-label="Мобильная навигация">
+      <nav className={[
+        'fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
+        activeView === 'messages' ? 'hidden' : '',
+      ].join(' ')} aria-label="Мобильная навигация">
         {mobileNavigation.map((item) => {
           const Icon = item.icon;
           const active = activeView === item.target;

@@ -1,4 +1,4 @@
-import { MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createDirectConversation,
@@ -26,6 +26,7 @@ function shouldStickToBottom(element) {
 export default function MessagesPanel({
   currentUser,
   expanded = false,
+  onConversationPathChange,
   onOpenProfile,
   onPreferredConversationHandled,
   people = [],
@@ -52,10 +53,15 @@ export default function MessagesPanel({
   const reloadTimerRef = useRef(null);
   const messagesListRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
+  const preferredConversationIdRef = useRef(preferredConversationId);
 
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  useEffect(() => {
+    preferredConversationIdRef.current = preferredConversationId;
+  }, [preferredConversationId]);
 
   const scrollMessagesToBottom = useCallback((behavior = 'smooth') => {
     const element = messagesListRef.current;
@@ -77,18 +83,23 @@ export default function MessagesPanel({
     try {
       setError('');
       const items = await fetchConversations(currentUserId);
-      const preferredExists = preferredConversationId && items.some((item) => item.id === preferredConversationId);
+      const routeConversationId = preferredConversationIdRef.current;
+      const preferredExists = routeConversationId && items.some((item) => item.id === routeConversationId);
       setConversations(items);
       setActiveId((currentActiveId) => {
         if (preferredExists) {
-          return preferredConversationId;
+          return routeConversationId;
+        }
+
+        if (routeConversationId && !preferredExists) {
+          return null;
         }
 
         if (keepActive && currentActiveId && items.some((item) => item.id === currentActiveId)) {
           return currentActiveId;
         }
 
-        return items[0]?.id || null;
+        return null;
       });
       if (preferredExists) {
         onPreferredConversationHandled?.();
@@ -100,7 +111,7 @@ export default function MessagesPanel({
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, onPreferredConversationHandled, preferredConversationId]);
+  }, [currentUserId, onPreferredConversationHandled]);
 
   const loadMessages = useCallback(async (conversationId, { appendOlder = false, before, markRead = false, scroll = false } = {}) => {
     if (!conversationId) {
@@ -140,12 +151,14 @@ export default function MessagesPanel({
       return;
     }
 
+    onConversationPathChange?.(activeId);
+
     shouldAutoScrollRef.current = true;
     void Promise.resolve().then(async () => {
       await loadMessages(activeId, { markRead: true, scroll: true });
       await loadConversations({ keepActive: true });
     });
-  }, [activeId, loadConversations, loadMessages]);
+  }, [activeId, loadConversations, loadMessages, onConversationPathChange]);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -175,8 +188,9 @@ export default function MessagesPanel({
 
     const channel = supabase
       .channel(`default-sqd-messages-${currentUserId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, scheduleRefresh)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_conversations' }, () => scheduleRefresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversations' }, () => scheduleRefresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_members' }, () => scheduleRefresh())
       .subscribe();
 
     return () => {
@@ -200,7 +214,7 @@ export default function MessagesPanel({
     return people.filter((person) => person.id !== currentUserId && !activeParticipantIds.has(person.id));
   }, [conversations, currentUserId, people]);
 
-  const activeConversation = conversations.find((conversation) => conversation.id === activeId) ?? conversations[0];
+  const activeConversation = activeId ? conversations.find((conversation) => conversation.id === activeId) : null;
   const activeParticipant = activeConversation ? getParticipant(activeConversation, people) : null;
   const activeMessages = activeConversation ? messagesByConversation[activeConversation.id] ?? [] : [];
   const hasOlderMessages = activeConversation ? Boolean(hasMoreByConversation[activeConversation.id]) : false;
@@ -217,6 +231,7 @@ export default function MessagesPanel({
       setError('');
       const id = await createDirectConversation(currentUserId, person.id);
       setActiveId(id);
+      onConversationPathChange?.(id);
       setDirectoryOpen(false);
       await loadConversations({ keepActive: true });
       await loadMessages(id, { markRead: true, scroll: true });
@@ -227,6 +242,7 @@ export default function MessagesPanel({
 
   const selectConversation = (conversationId) => {
     setActiveId(conversationId);
+    onConversationPathChange?.(conversationId);
   };
 
   const handleSend = async (event) => {
@@ -372,7 +388,7 @@ export default function MessagesPanel({
   };
 
   return (
-    <section className="min-w-0">
+    <section className="messages-section min-w-0">
       {expanded ? (
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -389,8 +405,8 @@ export default function MessagesPanel({
         </div>
       ) : null}
 
-      <Panel className={['overflow-hidden', expanded ? 'min-h-[620px]' : ''].join(' ')}>
-        <div className="border-b border-border p-4">
+      <Panel className={['messages-panel overflow-hidden', expanded ? 'min-h-[620px]' : ''].join(' ')}>
+        <div className="messages-sidebar-header border-b border-border p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-ui text-lg font-bold text-text">Диалоги</h2>
             {!expanded ? (
@@ -436,8 +452,11 @@ export default function MessagesPanel({
           {error ? <p className="mt-3 rounded-sqd-xs border border-warning/40 bg-warning/10 p-3 text-sm text-warning">{error}</p> : null}
         </div>
 
-        <div className={['grid', expanded ? 'lg:grid-cols-[300px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
-          <div className="grid max-h-[520px] content-start overflow-y-auto border-border lg:border-r">
+        <div className={['messages-layout grid', expanded ? 'lg:grid-cols-[300px_minmax(0,1fr)]' : 'sm:grid-cols-[190px_minmax(0,1fr)]'].join(' ')}>
+          <div className={[
+            'messages-conversation-list grid max-h-[520px] content-start overflow-y-auto border-border lg:border-r',
+            activeParticipant ? 'messages-conversation-list--has-active' : '',
+          ].join(' ')}>
             {loading ? (
               <p className="p-4 text-sm text-text-soft">Загружаем диалоги...</p>
             ) : filteredConversations.length > 0 ? (
@@ -478,10 +497,24 @@ export default function MessagesPanel({
             )}
           </div>
 
-          <div className="flex min-h-[520px] min-w-0 flex-col p-4">
+          <div className={[
+            'messages-chat flex min-h-[520px] min-w-0 flex-col p-4',
+            activeParticipant ? 'messages-chat--active' : '',
+          ].join(' ')}>
             {activeParticipant ? (
               <>
-                <div className="mb-4 flex items-center gap-3 rounded-sqd-sm border border-border bg-surface-2/60 p-3">
+                <div className="messages-chat-header mb-4 flex items-center gap-3 rounded-sqd-sm border border-border bg-surface-2/60 p-3">
+                  <button
+                    aria-label="Назад к диалогам"
+                    className="messages-back-button grid size-10 shrink-0 place-items-center rounded-full border border-border bg-surface-2/80 text-text-soft shadow-[0_10px_28px_rgba(0,0,0,0.22)] transition hover:border-border-strong hover:bg-accent-soft hover:text-text sm:hidden"
+                    onClick={() => {
+                      setActiveId(null);
+                      onConversationPathChange?.(null);
+                    }}
+                    type="button"
+                  >
+                    <ArrowLeft size={19} strokeWidth={2} />
+                  </button>
                   <button
                     aria-label={`Открыть профиль ${activeParticipant.name}`}
                     className="rounded-sqd-sm text-left transition hover:opacity-85"
@@ -603,7 +636,7 @@ export default function MessagesPanel({
                   </div>
                 </div>
 
-                <form className="mt-4 grid gap-2" onSubmit={handleSend}>
+                <form className="messages-composer mt-4 grid gap-2" onSubmit={handleSend}>
                   <div className="flex gap-2">
                     <textarea
                       className="max-h-36 min-h-10 min-w-0 flex-1 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none placeholder:text-muted focus:border-border-strong disabled:opacity-60"
