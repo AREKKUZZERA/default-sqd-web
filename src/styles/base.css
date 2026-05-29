@@ -629,6 +629,9 @@ body {
     radial-gradient(circle at 78% 12%, rgba(232, 224, 218, 0.08), transparent 18rem),
     radial-gradient(circle at 18% 86%, rgba(120, 199, 189, 0.06), transparent 18rem),
     linear-gradient(135deg, #07080a 0%, #101419 58%, #07090b 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .poster-band::after {

@@ -1,5 +1,8 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
+const MEDIA_BUCKET = 'avatars';
+const SIGNED_MEDIA_TTL = 60 * 60;
+
 const getErrorMessage = (error) => error?.message || 'Auth request failed';
 
 const withTimeout = (promise, ms = 8000) =>
@@ -30,9 +33,30 @@ const getInitials = (name) =>
     .join('')
     .toUpperCase();
 
+const isRemoteOrInlineImage = (value = '') => /^(?:data:|blob:|https?:\/\/)/i.test(value);
+
+const getSignedProfileMedia = async (profile = {}) => {
+  const paths = [profile.avatar_image, profile.banner_image].filter((value) => value && !isRemoteOrInlineImage(value));
+
+  if (!isSupabaseConfigured || paths.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(Array.from(new Set(paths)), SIGNED_MEDIA_TTL);
+
+  if (error) {
+    return new Map();
+  }
+
+  return new Map((data || []).filter((item) => item?.path && item?.signedUrl).map((item) => [item.path, item.signedUrl]));
+};
+
 export function mapAuthProfile(profile, user) {
   const emailName = user?.email?.split('@')[0] || 'squad';
   const name = profile?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || emailName;
+  const avatarImagePath = profile?.avatar_image || '';
+  const bannerImagePath = profile?.banner_image || '';
+  const mediaMap = profile?.mediaMap || new Map();
 
   return {
     id: profile?.id || user?.id,
@@ -45,8 +69,10 @@ export function mapAuthProfile(profile, user) {
     name,
     role: profile?.role || 'Member',
     avatar: profile?.avatar || getInitials(name),
-    avatarImage: profile?.avatar_image || '',
-    bannerImage: profile?.banner_image || '',
+    avatarImage: isRemoteOrInlineImage(avatarImagePath) ? avatarImagePath : mediaMap.get(avatarImagePath) || '',
+    avatarImagePath,
+    bannerImage: isRemoteOrInlineImage(bannerImagePath) ? bannerImagePath : mediaMap.get(bannerImagePath) || '',
+    bannerImagePath,
     status: profile?.status || 'online',
     lastSeenAt: profile?.last_seen_at || null,
     bio: profile?.bio || 'Новый участник закрытого пространства DEFAULT SQUAD.',
@@ -133,7 +159,8 @@ export async function ensureProfileForSession(session) {
   }
 
   if (existing) {
-    return mapAuthProfile(existing, user);
+    const mediaMap = await getSignedProfileMedia(existing);
+    return mapAuthProfile({ ...existing, mediaMap }, user);
   }
 
   const emailName = user.email?.split('@')[0] || `user_${user.id.slice(0, 6)}`;
@@ -160,7 +187,8 @@ export async function ensureProfileForSession(session) {
   );
 
   if (!error) {
-    return mapAuthProfile(data, user);
+    const mediaMap = await getSignedProfileMedia(data);
+    return mapAuthProfile({ ...data, mediaMap }, user);
   }
 
   if (error.code === '23505') {
@@ -178,7 +206,8 @@ export async function ensureProfileForSession(session) {
       throw new Error(getErrorMessage(retryError));
     }
 
-    return mapAuthProfile(retryData, user);
+    const mediaMap = await getSignedProfileMedia(retryData);
+    return mapAuthProfile({ ...retryData, mediaMap }, user);
   }
 
   throw new Error(getErrorMessage(error));
