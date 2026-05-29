@@ -472,78 +472,23 @@ export async function createDirectConversation(currentUserId, participantId) {
     return null;
   }
 
-  const firstUser = String(currentUserId) < String(participantId) ? currentUserId : participantId;
-  const secondUser = firstUser === currentUserId ? participantId : currentUserId;
-  const directKey = `${firstUser}:${secondUser}`;
-
-  const { data: existing, error: existingError } = await supabase
-    .from('direct_conversations')
-    .select('id')
-    .eq('direct_key', directKey)
-    .maybeSingle();
-
-  if (existingError) {
-    throw new Error(getErrorMessage(existingError));
+  if (!currentUserId || !participantId) {
+    throw new Error('Не удалось определить участников диалога.');
   }
 
-  if (existing) {
-    return existing.id;
+  if (currentUserId === participantId) {
+    throw new Error('Нельзя создать диалог с самим собой.');
   }
 
-  const { data: conversation, error: conversationError } = await supabase
-    .from('direct_conversations')
-    .insert({ direct_key: directKey })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('create_direct_conversation', {
+    target_user_id: participantId,
+  });
 
-  if (conversationError) {
-    if (conversationError.code === '23505') {
-      const { data: retry, error: retryError } = await supabase
-        .from('direct_conversations')
-        .select('id')
-        .eq('direct_key', directKey)
-        .single();
-
-      if (retryError) {
-        throw new Error(getErrorMessage(retryError));
-      }
-
-      return retry.id;
-    }
-
-    throw new Error(getErrorMessage(conversationError));
+  if (error) {
+    throw new Error(getErrorMessage(error));
   }
 
-  const { error: ownMemberError } = await supabase
-    .from('direct_conversation_members')
-    .upsert({ conversation_id: conversation.id, user_id: currentUserId }, { onConflict: 'conversation_id,user_id' });
-
-  if (ownMemberError) {
-    throw new Error(getErrorMessage(ownMemberError));
-  }
-
-  const { data: existingParticipantMember, error: participantSelectError } = await supabase
-    .from('direct_conversation_members')
-    .select('user_id')
-    .eq('conversation_id', conversation.id)
-    .eq('user_id', participantId)
-    .maybeSingle();
-
-  if (participantSelectError) {
-    throw new Error(getErrorMessage(participantSelectError));
-  }
-
-  if (!existingParticipantMember) {
-    const { error: participantMemberError } = await supabase
-      .from('direct_conversation_members')
-      .insert({ conversation_id: conversation.id, user_id: participantId });
-
-    if (participantMemberError) {
-      throw new Error(getErrorMessage(participantMemberError));
-    }
-  }
-
-  return conversation.id;
+  return data;
 }
 
 export async function sendDirectMessage({ conversationId, currentUserId, text }) {
