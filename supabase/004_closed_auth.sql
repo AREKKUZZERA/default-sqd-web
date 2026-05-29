@@ -183,12 +183,13 @@ begin
     initials := 'SQ';
   end if;
 
-  insert into public.profiles (id, user_id, name, role, avatar, status, bio)
+  insert into public.profiles (id, user_id, name, role, permissions, avatar, status, bio)
   values (
     new.id::text,
     final_user_id,
     display_name,
-    coalesce(nullif(new.raw_user_meta_data->>'role', ''), 'Member'),
+    'Member',
+    '{}',
     initials,
     'online',
     'Новый участник закрытого пространства DEFAULT SQUAD.'
@@ -212,7 +213,7 @@ revoke insert, update, delete on public.posts from anon;
 revoke insert, update, delete on public.comments from anon;
 revoke insert, update, delete on public.post_reactions from anon;
 
--- Restrict profile self-service columns. The public role cannot be changed by clients.
+-- Restrict profile self-service columns. The public role and permission badges cannot be changed by clients.
 revoke insert, update, delete on public.profiles from authenticated;
 grant select on public.profiles to authenticated;
 grant insert (id, user_id, name, avatar, avatar_image, banner_image, status, bio) on public.profiles to authenticated;

@@ -26,6 +26,7 @@ import { reportContent } from '../shared/api/moderationApi.js';
 import useOnlinePresence from '../shared/hooks/useOnlinePresence.js';
 import { supabase } from '../shared/lib/supabase.js';
 import { applyPresenceStatus } from '../shared/utils/presence.js';
+import { hasModerationPermission } from '../shared/utils/permissions.js';
 import { buildHashtagTrends, extractHashtags } from '../shared/utils/hashtags.js';
 import Avatar from '../shared/ui/Avatar.jsx';
 import IconButton from '../shared/ui/IconButton.jsx';
@@ -97,7 +98,7 @@ const getPostIdFromPath = () => {
 
 const isSamePostId = (left, right) => String(left || '') === String(right || '');
 
-const hasModerationAccess = (profile) => ['admin', 'administrator', 'moderator', 'mod'].includes(String(profile?.role || '').toLowerCase());
+const hasModerationAccess = (profile) => hasModerationPermission(profile);
 
 const getInitialView = () => {
   if (getProfileKeyFromPath()) return 'profile';
@@ -131,7 +132,7 @@ const getWallPosts = (profileId, posts) =>
       post.bookmarkedBy?.includes(profileId),
   );
 
-const PROFILE_RELOAD_FIELDS = ['avatar', 'avatar_image', 'banner_image', 'bio', 'name', 'role', 'status', 'user_id'];
+const PROFILE_RELOAD_FIELDS = ['avatar', 'avatar_image', 'banner_image', 'bio', 'name', 'permissions', 'role', 'status', 'user_id'];
 
 const shouldReloadForProfileChange = (payload) => {
   if (payload.eventType !== 'UPDATE') {
@@ -170,6 +171,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
+  const [moderationTargetUserId, setModerationTargetUserId] = useState('');
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState('');
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('default-sqd-density') === 'compact');
@@ -711,10 +713,11 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     updateBrowserPath('/moderation');
   };
 
-  const openModerationForUser = () => {
+  const openModerationForUser = (profileId = '') => {
     if (!canModerate) {
       return;
     }
+    setModerationTargetUserId(profileId || '');
     showModeration();
   };
 
@@ -976,6 +979,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           ) : activeView === 'moderation' && canModerate ? (
             <ModerationPanel
               currentUser={displayedUser}
+              initialTargetUserId={moderationTargetUserId}
+              onInitialTargetHandled={() => setModerationTargetUserId('')}
               onOpenProfile={showProfile}
               people={peopleWithPresence}
             />
@@ -988,7 +993,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
               onDeleteComment={deleteComment}
               onDeletePost={deletePost}
               onMessage={startConversation}
+              onModerateUser={openModerationForUser}
               onOpenProfile={showProfile}
+              onReport={openReportDialog}
               onTogglePost={togglePost}
               onUpdateComment={updateComment}
               onUpdatePost={updatePost}

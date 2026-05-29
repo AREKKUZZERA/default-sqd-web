@@ -1,20 +1,38 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
+import { getDisplayRole, getPermissions } from '../utils/permissions.js';
 
 const getErrorMessage = (error) => error?.message || 'Moderation request failed';
 
-const mapReport = (report = {}) => ({
-  id: report.id,
-  reporterId: report.reporter_id,
-  reporterName: report.reporter_name || '',
-  targetId: report.target_id,
-  targetName: report.target_name || '',
-  postId: report.post_id,
-  commentId: report.comment_id,
-  messageId: report.message_id,
-  reason: report.reason || '',
-  status: report.status || 'open',
-  createdAt: report.created_at,
-});
+const mapReport = (report = {}) => {
+  const targetProfile = {
+    permissions: report.target_permissions || [],
+    role: report.target_role || '',
+  };
+
+  return {
+    id: report.id,
+    reporterId: report.reporter_id,
+    reporterName: report.reporter_name || '',
+    reporterUserId: report.reporter_user_id || '',
+    targetId: report.target_id,
+    targetName: report.target_name || '',
+    targetUserId: report.target_user_id || '',
+    targetRole: getDisplayRole(targetProfile),
+    targetPermissions: getPermissions(targetProfile),
+    postId: report.post_id,
+    commentId: report.comment_id,
+    messageId: report.message_id,
+    contentType: report.content_type || '',
+    contentText: report.content_text || '',
+    contentAuthorId: report.content_author_id || '',
+    contentAuthorName: report.content_author_name || '',
+    contentAuthorUserId: report.content_author_user_id || '',
+    contentCreatedAt: report.content_created_at || null,
+    reason: report.reason || '',
+    status: report.status || 'open',
+    createdAt: report.created_at,
+  };
+};
 
 export async function blockUser(targetUserId, reason = '') {
   if (!isSupabaseConfigured || !targetUserId) return;

@@ -4,6 +4,26 @@
 
 create extension if not exists pgcrypto;
 
+alter table public.profiles
+  add column if not exists permissions text[] not null default '{}';
+
+update public.profiles
+set role = 'Member'
+where role is null or btrim(role) = '';
+
+alter table public.profiles
+  alter column role set default 'Member',
+  alter column role set not null,
+  alter column permissions set default '{}',
+  alter column permissions set not null;
+
+alter table public.posts
+  drop constraint if exists posts_text_check;
+
+alter table public.posts
+  add constraint posts_text_check
+  check (char_length(trim(text)) > 0 and char_length(text) <= 4000);
+
 create table if not exists public.user_blocks (
   blocker_id text not null references public.profiles(id) on delete cascade,
   blocked_id text not null references public.profiles(id) on delete cascade,
@@ -81,7 +101,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select id from public.profiles where auth_user_id = auth.uid() limit 1;
+  select id from public.profiles where id = auth.uid()::text limit 1;
 $$;
 
 create or replace function public.is_moderator(check_user_id text default public.current_profile_id())
@@ -94,7 +114,10 @@ as $$
   select exists (
     select 1 from public.profiles
     where id = check_user_id
-      and lower(coalesce(role, '')) in ('admin', 'administrator', 'moderator', 'mod')
+      and (
+        lower(coalesce(role, '')) in ('admin', 'administrator', 'moderator', 'mod', 'owner', 'creator')
+        or coalesce(permissions, '{}'::text[]) && array['owner', 'creator', 'admin', 'moderator']::text[]
+      )
   );
 $$;
 
@@ -160,7 +183,7 @@ declare
   state public.user_safety_state%rowtype;
   limit_count integer := 0;
   duplicate_count integer := 0;
-  content_hash text := encode(digest(public.normalize_moderation_text(body), 'sha256'), 'hex');
+  event_content_hash text := encode(digest(public.normalize_moderation_text(body), 'sha256'), 'hex');
   spam_score integer := public.content_spam_score(body);
   window_minutes integer := 10;
   max_events integer := case action_name
@@ -208,7 +231,7 @@ begin
     select count(*) into duplicate_count
     from public.content_rate_events
     where user_id = uid
-      and content_hash = content_hash
+      and content_hash = event_content_hash
       and created_at > now() - interval '15 minutes';
 
     if duplicate_count >= 2 then
@@ -217,7 +240,7 @@ begin
   end if;
 
   insert into public.content_rate_events(user_id, action, content_hash)
-  values (uid, action_name, nullif(content_hash, encode(digest('', 'sha256'), 'hex')));
+  values (uid, action_name, nullif(event_content_hash, encode(digest('', 'sha256'), 'hex')));
 end;
 $$;
 
@@ -230,13 +253,21 @@ as $$
 declare
   uid text := public.current_profile_id();
 begin
+  if char_length(trim(coalesce(body, ''))) = 0 then
+    raise exception 'Пост не может быть пустым.' using errcode = '22023';
+  end if;
+
+  if char_length(body) > 4000 then
+    raise exception 'Пост не может быть длиннее 4000 символов.' using errcode = '22023';
+  end if;
+
   perform public.assert_user_can_write('post', body);
   insert into public.posts(owner_id, text, tags)
   values (uid, trim(body), coalesce(tag_list, '{}'));
 end;
 $$;
 
-create or replace function public.create_comment_safe(target_post_id uuid, body text)
+create or replace function public.create_comment_safe(target_post_id bigint, body text)
 returns void
 language plpgsql
 security definer

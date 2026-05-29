@@ -1,4 +1,6 @@
+import { MAX_COMMENT_LENGTH, MAX_POST_LENGTH } from '../constants/content.js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
+import { getDisplayRole, getPermissions } from '../utils/permissions.js';
 
 export { isSupabaseConfigured };
 
@@ -176,7 +178,8 @@ export const mapProfile = (profile = {}, mediaMap = new Map()) => {
     id: profile.id,
     userId: profile.user_id || 'squad',
     name,
-    role: profile.role || 'Member',
+    role: getDisplayRole(profile),
+    permissions: getPermissions(profile),
     avatar: profile.avatar || getInitials(name),
     avatarImage: resolveMediaUrl(avatarImagePath, mediaMap),
     avatarImagePath,
@@ -197,6 +200,8 @@ const mapComment = (comment, mediaMap = new Map()) => {
     authorId: author.id,
     author: author.name || 'Squad user',
     userId: author.user_id || 'squad',
+    authorRole: getDisplayRole(author),
+    authorPermissions: getPermissions(author),
     avatar: author.avatar || getInitials(author.name),
     avatarImage: resolveMediaUrl(author.avatar_image || '', mediaMap),
     avatarImagePath: author.avatar_image || '',
@@ -231,6 +236,8 @@ const mapPost = (post, currentUserId, mediaMap = new Map()) => {
     ownerId: post.owner_id,
     author: author.name || 'Squad user',
     userId: author.user_id || 'squad',
+    authorRole: getDisplayRole(author),
+    authorPermissions: getPermissions(author),
     avatar: author.avatar || getInitials(author.name),
     avatarImage: resolveMediaUrl(author.avatar_image || '', mediaMap),
     avatarImagePath: author.avatar_image || '',
@@ -349,7 +356,7 @@ export async function fetchProfiles() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, user_id, name, role, avatar, avatar_image, banner_image, status, last_seen_at, bio')
+    .select('id, user_id, name, role, permissions, avatar, avatar_image, banner_image, status, last_seen_at, bio')
     .order('name', { ascending: true });
 
   if (error) {
@@ -378,6 +385,8 @@ export async function fetchPostsPage(currentUserId, { cursor = null, limit = POS
         id,
         user_id,
         name,
+        role,
+        permissions,
         avatar,
         avatar_image
       ),
@@ -391,6 +400,7 @@ export async function fetchPostsPage(currentUserId, { cursor = null, limit = POS
           user_id,
           name,
           role,
+          permissions,
           avatar,
           avatar_image
         )
@@ -449,6 +459,8 @@ export async function fetchPostById(currentUserId, postId) {
         id,
         user_id,
         name,
+        role,
+        permissions,
         avatar,
         avatar_image
       ),
@@ -462,6 +474,7 @@ export async function fetchPostById(currentUserId, postId) {
           user_id,
           name,
           role,
+          permissions,
           avatar,
           avatar_image
         )
@@ -498,6 +511,10 @@ export async function createPost({ currentUserId, hashtags, text }) {
     throw new Error('Пост не может быть пустым.');
   }
 
+  if (cleanText.length > MAX_POST_LENGTH) {
+    throw new Error(`Пост не может быть длиннее ${MAX_POST_LENGTH} символов.`);
+  }
+
   const { error } = await supabase.rpc('create_post_safe', {
     body: cleanText,
     tag_list: normalizeTags(hashtags),
@@ -519,6 +536,10 @@ export async function updatePost({ currentUserId, hashtags, postId, text }) {
 
   if (!cleanText) {
     throw new Error('Пост не может быть пустым.');
+  }
+
+  if (cleanText.length > MAX_POST_LENGTH) {
+    throw new Error(`Пост не может быть длиннее ${MAX_POST_LENGTH} символов.`);
   }
 
   const { error } = await supabase
@@ -546,6 +567,10 @@ export async function createComment({ currentUserId, postId, text }) {
 
   if (!cleanText) {
     throw new Error('Комментарий не может быть пустым.');
+  }
+
+  if (cleanText.length > MAX_COMMENT_LENGTH) {
+    throw new Error(`Комментарий не может быть длиннее ${MAX_COMMENT_LENGTH} символов.`);
   }
 
   const { error } = await supabase.rpc('create_comment_safe', {
@@ -605,6 +630,10 @@ export async function updateComment({ commentId, currentUserId, text }) {
 
   if (!cleanText) {
     throw new Error('Комментарий не может быть пустым.');
+  }
+
+  if (cleanText.length > MAX_COMMENT_LENGTH) {
+    throw new Error(`Комментарий не может быть длиннее ${MAX_COMMENT_LENGTH} символов.`);
   }
 
   const { error } = await supabase
@@ -723,6 +752,8 @@ export async function fetchNotifications(currentUserId) {
         id,
         user_id,
         name,
+        role,
+        permissions,
         avatar,
         avatar_image
       )
@@ -789,6 +820,7 @@ export async function fetchConversations(currentUserId) {
           user_id,
           name,
           role,
+          permissions,
           avatar,
           avatar_image,
           banner_image,

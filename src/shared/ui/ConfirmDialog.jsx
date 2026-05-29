@@ -23,7 +23,7 @@ export default function ConfirmDialog({
         role="dialog"
       >
         <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-sqd-sm border border-warning/40 bg-warning/10 text-warning">
+          <span className="grid size-10 shrink-0 place-items-center rounded-sqd-sm border border-danger/40 bg-danger-soft text-danger">
             <AlertTriangle aria-hidden="true" size={18} strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
@@ -42,7 +42,7 @@ export default function ConfirmDialog({
             {cancelLabel}
           </button>
           <button
-            className="min-h-10 rounded-sqd-xs border border-warning/45 bg-warning/10 px-3 font-ui text-sm font-bold text-warning transition hover:border-warning/70 disabled:cursor-wait disabled:opacity-50"
+            className="danger-icon-button min-h-10 rounded-sqd-xs border px-3 font-ui text-sm font-bold transition disabled:cursor-wait disabled:opacity-50"
             disabled={busy}
             onClick={onConfirm}
             type="button"

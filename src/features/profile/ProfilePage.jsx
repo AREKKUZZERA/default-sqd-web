@@ -2,6 +2,7 @@ import { MessageCircle, Pencil, Upload, UserCircle, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
+import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 import SectionTitle from '../../shared/ui/SectionTitle.jsx';
 import PostCard from '../feed/PostCard.jsx';
 
@@ -175,6 +176,8 @@ export default function ProfilePage({
   onDeletePost,
   onMessage,
   onOpenProfile,
+  onModerateUser,
+  onReport,
   onTogglePost,
   onUploadProfileImage,
   onUpdateComment,
@@ -436,8 +439,9 @@ export default function ProfilePage({
                 <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
                 <span className="role-pill inline-flex items-center gap-2 rounded-sqd-xs border px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em]">
                   <UserCircle size={14} strokeWidth={1.8} />
-                  {profileUser.role || 'Member'}
+                  роль: {profileUser.role || 'Member'}
                 </span>
+                <PermissionBadges permissions={profileUser.permissions} />
                 <span
                   className={[
                     'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
@@ -680,7 +684,9 @@ export default function ProfilePage({
                 onComment={onCommentPost}
                 onDeleteComment={onDeleteComment}
                 onDelete={onDeletePost}
+                onModerateUser={onModerateUser}
                 onOpenProfile={onOpenProfile}
+                onReport={onReport}
                 onToggle={onTogglePost}
                 onUpdateComment={onUpdateComment}
                 onUpdatePost={onUpdatePost}

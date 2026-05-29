@@ -747,7 +747,7 @@ export default function MessagesPanel({
                                       {own ? (
                                         <button
                                           aria-label="Удалить сообщение"
-                                          className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                          className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
                                           disabled={Boolean(busyMessageId)}
                                           onClick={() => removeMessage(message.id)}
                                           type="button"
@@ -757,7 +757,7 @@ export default function MessagesPanel({
                                       ) : (
                                         <button
                                           aria-label="Пожаловаться на сообщение"
-                                          className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                          className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
                                           disabled={Boolean(busyMessageId)}
                                           onClick={() => onReport?.({ messageId: message.id, targetLabel: `сообщение ${activeParticipant?.name || ''}`, targetUserId: message.authorId })}
                                           type="button"

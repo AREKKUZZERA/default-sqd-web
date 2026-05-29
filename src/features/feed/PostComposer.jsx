@@ -1,5 +1,6 @@
 import { Send } from 'lucide-react';
 import { useState } from 'react';
+import { MAX_POST_LENGTH } from '../../shared/constants/content.js';
 import { extractHashtags } from '../../shared/utils/hashtags.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
 
@@ -32,7 +33,7 @@ export default function PostComposer({ currentUser, onPost }) {
   const [draft, setDraft] = useState(() => readStoredDraft(draftStorageKey));
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
-  const remaining = 280 - draft.length;
+  const remaining = MAX_POST_LENGTH - draft.length;
   const hashtags = extractHashtags(draft);
 
   const handleSubmit = async (event) => {
@@ -79,7 +80,7 @@ export default function PostComposer({ currentUser, onPost }) {
         <div className="min-w-0 flex-1">
           <textarea
             className="min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
-            maxLength={280}
+            maxLength={MAX_POST_LENGTH}
             name="post-body"
             onChange={handleDraftChange}
             onKeyDown={handleComposerKeyDown}
@@ -96,9 +97,9 @@ export default function PostComposer({ currentUser, onPost }) {
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted">Хештеги можно добавить прямо в текст: #shluxabot</p>
+            <p className="text-xs text-muted">Markdown и хештеги поддерживаются прямо в тексте.</p>
             <div className="flex items-center gap-3">
-              <span className={['font-mono text-[0.65rem]', remaining < 30 ? 'text-warning' : 'text-muted'].join(' ')}>
+              <span className={['font-mono text-[0.65rem]', remaining < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {remaining}
               </span>
               <button

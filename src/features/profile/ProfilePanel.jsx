@@ -1,6 +1,7 @@
 import { Home, MessageCircle, UserCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
+import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
@@ -61,8 +62,9 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
 
           <div className="mt-4 grid gap-2 text-sm text-text-soft">
             <span className="inline-flex items-center gap-2">
-              <UserCircle size={15} strokeWidth={1.8} /> {currentUser.role || 'Member'}
+              <UserCircle size={15} strokeWidth={1.8} /> роль: {currentUser.role || 'Member'}
             </span>
+            <PermissionBadges permissions={currentUser.permissions} />
           </div>
         </div>
       </Panel>

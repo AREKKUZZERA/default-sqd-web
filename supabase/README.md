@@ -15,6 +15,9 @@ For the current existing project, run these in Supabase Dashboard -> SQL Editor:
 7. `007_remove_demo_content.sql` - removes legacy mock/demo profiles and their posts/comments/reactions
 8. `009_profile_presence.sql` - last-seen timestamps for real online/offline status
 9. `010_storage_auth_refresh.sql` - refreshes private avatar/banner Storage policies if uploads hit RLS errors
+10. `migrations/20260529_moderation_and_antispam.sql` - moderation actions, reports, blocking and anti-spam RPC
+11. `migrations/20260529_moderation_ui.sql` - basic moderation dashboard RPC
+12. `migrations/20260529_permissions_markdown_reports.sql` - permission badges, 4000-character markdown posts and rich report cards
 
 `002_seed.sql` intentionally inserts nothing in release mode. Do not seed demo profiles/posts for production.
 
@@ -49,7 +52,17 @@ Create accounts manually in Supabase Dashboard:
 }
 ```
 
-`004_closed_auth.sql` creates a database trigger. When a Supabase Auth user is created, a matching row is added to `public.profiles` with `profiles.id = auth.users.id`. Client-side profile updates cannot change `profiles.role`.
+Permission badges are server-managed in `profiles.permissions`, not editable by users. Assign them from SQL/Admin tooling, for example:
+
+```sql
+update public.profiles
+set permissions = array['owner', 'admin']
+where user_id = 'your_login';
+```
+
+Supported permission badges are `owner`, `creator`, `admin` and `moderator`. The visible `role` field can stay a normal title such as `Designer`, `Developer` or `Member`.
+
+`004_closed_auth.sql` creates a database trigger. When a Supabase Auth user is created, a matching row is added to `public.profiles` with `profiles.id = auth.users.id`. Client-side profile updates cannot change `profiles.role` or `profiles.permissions`.
 
 ## Disable public signup
 

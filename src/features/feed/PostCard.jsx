@@ -1,9 +1,13 @@
 import { Bookmark, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { MAX_COMMENT_LENGTH, MAX_POST_LENGTH } from '../../shared/constants/content.js';
+import { hasModerationPermission } from '../../shared/utils/permissions.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import ConfirmDialog from '../../shared/ui/ConfirmDialog.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
+import MarkdownBody from '../../shared/ui/MarkdownBody.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
+import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 
 const INITIAL_VISIBLE_COMMENTS = 10;
 
@@ -61,7 +65,7 @@ export default function PostCard({
   const commentsId = `post-comments-${post.id}`;
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
   const isOwner = currentUser?.id === post.ownerId;
-  const canModerate = ['admin', 'administrator', 'moderator', 'mod'].includes(String(currentUser?.role || '').toLowerCase());
+  const canModerate = hasModerationPermission(currentUser);
   const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
   const activityTone = activityType || 'post';
   const ActivityIcon = activityIconByType[activityTone] || Pencil;
@@ -254,6 +258,7 @@ export default function PostCard({
             <span className="post-meta font-mono text-[0.7rem] tracking-[0.03em] text-muted">
               @{post.userId} / {post.time}
             </span>
+            <PermissionBadges compact permissions={post.authorPermissions} />
             {tags.map((tag) => (
               <span className="post-tag rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.58rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
                 #{tag}
@@ -278,7 +283,7 @@ export default function PostCard({
                     </button>
                     <button
                       aria-label="Удалить пост"
-                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/60 text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:size-8"
+                      className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
                       disabled={postBusy}
                       onClick={requestDeletePost}
                       title="Удалить пост"
@@ -291,7 +296,7 @@ export default function PostCard({
                 {!isOwner ? (
                   <button
                     aria-label="Пожаловаться на пост"
-                    className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/60 text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning sm:size-8"
+                    className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition sm:size-8"
                     onClick={() => onReport?.({ postId: post.id, targetLabel: `пост ${post.author}`, targetUserId: post.ownerId })}
                     title="Пожаловаться на пост"
                     type="button"
@@ -301,7 +306,7 @@ export default function PostCard({
                 ) : null}
                 {canModerate && !isOwner ? (
                   <button
-                    className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-warning/45 bg-warning/10 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-warning transition hover:border-warning/70 sm:min-h-8"
+                    className="primary-action-button inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] transition sm:min-h-8"
                     onClick={() => onModerateUser?.(post.ownerId)}
                     type="button"
                   >
@@ -317,11 +322,14 @@ export default function PostCard({
             <div className="mt-2 grid gap-2">
               <textarea
                 className="min-h-28 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none focus:border-border-strong"
-                maxLength={280}
+                maxLength={MAX_POST_LENGTH}
                 name="post-edit-body"
                 onChange={(event) => setPostDraft(event.target.value)}
                 value={postDraft}
               />
+              <p className={["justify-self-end font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
+                {MAX_POST_LENGTH - postDraft.length}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button
                   className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
@@ -341,11 +349,11 @@ export default function PostCard({
               </div>
             </div>
           ) : (
-            <p className={[compact ? 'mt-1.5 leading-5' : 'mt-2 leading-6', 'max-w-3xl whitespace-pre-wrap text-[0.92rem] text-text-soft'].join(' ')}>
-              {post.text}
-              {post.edited ? <span className="ml-2 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">изменено</span> : null}
-              {post.pending ? <span className="ml-2 font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">сохраняется</span> : null}
-            </p>
+            <div className={[compact ? 'mt-1.5 leading-5' : 'mt-2 leading-6', 'max-w-3xl text-[0.92rem] text-text-soft'].join(' ')}>
+              <MarkdownBody value={post.text} />
+              {post.edited ? <span className="mt-1 inline-block font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">изменено</span> : null}
+              {post.pending ? <span className="ml-2 mt-1 inline-block font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">сохраняется</span> : null}
+            </div>
           )}
 
           {postError ? <p className="mt-2 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{postError}</p> : null}
@@ -430,6 +438,7 @@ export default function PostCard({
                               {comment.pending ? 'отправляется' : comment.time}
                               {comment.edited && !comment.pending ? ' / изменено' : ''}
                             </span>
+                            <PermissionBadges compact permissions={comment.authorPermissions} />
                             {ownComment || !comment.pending ? (
                               <span className="ml-auto inline-flex gap-1">
                                 {ownComment ? (
@@ -445,7 +454,7 @@ export default function PostCard({
                                     </button>
                                     <button
                                       aria-label="Удалить комментарий"
-                                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                      className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
                                       disabled={busy || comment.pending}
                                       onClick={() => requestDeleteComment(comment.id)}
                                       type="button"
@@ -456,7 +465,7 @@ export default function PostCard({
                                 ) : (
                                   <button
                                     aria-label="Пожаловаться на комментарий"
-                                    className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning sm:size-8"
+                                    className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition sm:size-8"
                                     onClick={() => onReport?.({ commentId: comment.id, targetLabel: `комментарий ${comment.author}`, targetUserId: comment.authorId })}
                                     type="button"
                                   >
@@ -470,7 +479,7 @@ export default function PostCard({
                             <div className="mt-2 grid gap-2">
                               <textarea
                                 className="min-h-20 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
-                                maxLength={280}
+                                maxLength={MAX_COMMENT_LENGTH}
                                 name="comment-edit-body"
                                 onChange={(event) => setEditingDraft(event.target.value)}
                                 value={editingDraft}
@@ -494,7 +503,7 @@ export default function PostCard({
                               </div>
                             </div>
                           ) : (
-                            <p className="mt-1 whitespace-pre-wrap text-[0.82rem] leading-5 text-text-soft">{comment.text}</p>
+                            <MarkdownBody className="mt-1 text-[0.82rem] leading-5 text-text-soft" value={comment.text} />
                           )}
                         </div>
                       </div>
@@ -508,7 +517,7 @@ export default function PostCard({
               <input
                 className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
                 disabled={commentSending}
-                maxLength={280}
+                maxLength={MAX_COMMENT_LENGTH}
                 name="comment-body"
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Написать комментарий"

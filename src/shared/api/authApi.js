@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
+import { getDisplayRole, getPermissions } from '../utils/permissions.js';
 
 const MEDIA_BUCKET = 'avatars';
 const SIGNED_MEDIA_TTL = 60 * 60;
@@ -67,7 +68,8 @@ export function mapAuthProfile(profile, user) {
         `user_${user?.id?.slice(0, 6) || 'sqd'}`
       ),
     name,
-    role: profile?.role || 'Member',
+    role: getDisplayRole(profile),
+    permissions: getPermissions(profile),
     avatar: profile?.avatar || getInitials(name),
     avatarImage: isRemoteOrInlineImage(avatarImagePath) ? avatarImagePath : mediaMap.get(avatarImagePath) || '',
     avatarImagePath,

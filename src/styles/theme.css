@@ -16,6 +16,8 @@
   --color-positive: #78c7bd;
   --color-positive-soft: rgba(120, 199, 189, 0.11);
   --color-warning: #d7a279;
+  --color-danger: #ff6670;
+  --color-danger-soft: rgba(255, 102, 112, 0.12);
   --font-display: 'Arial Black', 'Impact', system-ui, sans-serif;
   --font-ui: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-body: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -52,6 +54,8 @@
   --color-positive: var(--color-positive);
   --color-positive-soft: var(--color-positive-soft);
   --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
   --font-display: var(--font-display);
   --font-ui: var(--font-ui);
   --font-body: var(--font-body);
