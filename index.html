@@ -9,6 +9,17 @@
     />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <title>SQD - social feed</title>
+
+    <!-- GitHub Pages SPA redirect fix -->
+    <script>
+      (function() {
+        var query = window.location.search;
+        if (query && query.indexOf('?p=') === 0) {
+          var path = decodeURIComponent(query.slice(3));
+          window.history.replaceState(null, null, path + window.location.hash);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
