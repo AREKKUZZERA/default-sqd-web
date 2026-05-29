@@ -3,8 +3,33 @@ import { useState } from 'react';
 import { extractHashtags } from '../../shared/utils/hashtags.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
 
+const DRAFT_STORAGE_KEY = 'sqd:post-composer:draft';
+
+const getDraftStorageKey = (userId) => `${DRAFT_STORAGE_KEY}:${userId || 'guest'}`;
+
+const readStoredDraft = (storageKey) => {
+  try {
+    return window.localStorage.getItem(storageKey) || '';
+  } catch {
+    return '';
+  }
+};
+
+const writeStoredDraft = (storageKey, value) => {
+  try {
+    if (value) {
+      window.localStorage.setItem(storageKey, value);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // Draft persistence is optional; posting must keep working if storage is unavailable.
+  }
+};
+
 export default function PostComposer({ currentUser, onPost }) {
-  const [draft, setDraft] = useState('');
+  const draftStorageKey = getDraftStorageKey(currentUser?.id);
+  const [draft, setDraft] = useState(() => readStoredDraft(draftStorageKey));
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const remaining = 280 - draft.length;
@@ -23,11 +48,19 @@ export default function PostComposer({ currentUser, onPost }) {
       setError('');
       await onPost({ hashtags, text });
       setDraft('');
+      writeStoredDraft(draftStorageKey, '');
     } catch (postError) {
       setError(postError.message);
     } finally {
       setSending(false);
     }
+  };
+
+  const handleDraftChange = (event) => {
+    const nextDraft = event.target.value;
+
+    setDraft(nextDraft);
+    writeStoredDraft(draftStorageKey, nextDraft);
   };
 
   const handleComposerKeyDown = (event) => {
@@ -48,7 +81,7 @@ export default function PostComposer({ currentUser, onPost }) {
             className="min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
             maxLength={280}
             name="post-body"
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={handleDraftChange}
             onKeyDown={handleComposerKeyDown}
             placeholder="Напишите новый пост"
             value={draft}

@@ -91,7 +91,7 @@ export default function Feed({
 
       {!selectedPostId ? (
         <div className="mb-4">
-          <PostComposer currentUser={currentUser} onPost={onAddPost} />
+          <PostComposer currentUser={currentUser} key={currentUser?.id || 'guest'} onPost={onAddPost} />
         </div>
       ) : null}
 
