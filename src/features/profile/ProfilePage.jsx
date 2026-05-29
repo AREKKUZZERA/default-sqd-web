@@ -396,6 +396,7 @@ export default function ProfilePage({
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Имя</span>
                 <input
                   className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+                  name="profile-name"
                   onChange={(event) => setDraft((value) => ({ ...value, name: event.target.value }))}
                   value={draft.name}
                 />
@@ -404,6 +405,7 @@ export default function ProfilePage({
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Уникальный ID</span>
                 <input
                   className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-sm text-text outline-none focus:border-border-strong"
+                  name="profile-user-id"
                   onChange={(event) => setDraft((value) => ({ ...value, userId: event.target.value }))}
                   value={draft.userId}
                 />
@@ -412,6 +414,7 @@ export default function ProfilePage({
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">О себе</span>
                 <textarea
                   className="min-h-24 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-6 text-text outline-none focus:border-border-strong"
+                  name="profile-bio"
                   onChange={(event) => setDraft((value) => ({ ...value, bio: event.target.value }))}
                   value={draft.bio}
                 />
@@ -427,6 +430,7 @@ export default function ProfilePage({
                   <input
                     accept="image/*"
                     className="sr-only"
+                    name="profile-avatar-image"
                     onChange={(event) => handleImageUpload(event, 'avatarImage')}
                     type="file"
                   />
@@ -440,6 +444,7 @@ export default function ProfilePage({
                   <input
                     accept="image/*"
                     className="sr-only"
+                    name="profile-banner-image"
                     onChange={(event) => handleImageUpload(event, 'bannerImage')}
                     type="file"
                   />
@@ -480,6 +485,7 @@ export default function ProfilePage({
                     <input
                       max="3"
                       min="1"
+                      name="profile-crop-zoom"
                       onChange={(event) => setCropDraft((value) => ({ ...value, zoom: Number(event.target.value) }))}
                       step="0.01"
                       type="range"
@@ -491,6 +497,7 @@ export default function ProfilePage({
                     <input
                       max="100"
                       min="-100"
+                      name="profile-crop-offset-x"
                       onChange={(event) => setCropDraft((value) => ({ ...value, offsetX: Number(event.target.value) }))}
                       type="range"
                       value={cropDraft.offsetX}
@@ -501,6 +508,7 @@ export default function ProfilePage({
                     <input
                       max="100"
                       min="-100"
+                      name="profile-crop-offset-y"
                       onChange={(event) => setCropDraft((value) => ({ ...value, offsetY: Number(event.target.value) }))}
                       type="range"
                       value={cropDraft.offsetY}

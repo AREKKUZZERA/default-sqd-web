@@ -133,6 +133,7 @@ export default function AuthScreen({ error, loading = false, onSignIn, supabaseR
                   autoComplete="email"
                   className="min-w-0 flex-1 border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
                   disabled={!supabaseReady || submitting}
+                  name="email"
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="email@example.com"
                   type="email"
@@ -149,6 +150,7 @@ export default function AuthScreen({ error, loading = false, onSignIn, supabaseR
                   autoComplete="current-password"
                   className="min-w-0 flex-1 border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
                   disabled={!supabaseReady || submitting}
+                  name="password"
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                   type="password"

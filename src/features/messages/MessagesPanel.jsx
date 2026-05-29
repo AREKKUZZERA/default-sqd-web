@@ -489,6 +489,7 @@ export default function MessagesPanel({
             <Search size={15} strokeWidth={1.8} />
             <input
               className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+              name="conversation-search"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск диалога"
               type="search"
@@ -642,8 +643,9 @@ export default function MessagesPanel({
                               <div className="grid gap-2">
                                 <textarea
                                   className="min-h-20 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
-                                  maxLength={1000}
                                   disabled={busy}
+                                  maxLength={1000}
+                                  name="message-edit-body"
                                   onChange={(event) => setEditingMessageDraft(event.target.value)}
                                   value={editingMessageDraft}
                                 />
@@ -716,6 +718,7 @@ export default function MessagesPanel({
                       className="max-h-36 min-h-10 min-w-0 flex-1 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none placeholder:text-muted focus:border-border-strong disabled:opacity-60"
                       disabled={sending}
                       maxLength={1000}
+                      name="message-body"
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
                       placeholder="Сообщение"

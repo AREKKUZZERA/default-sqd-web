@@ -712,6 +712,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
             <Search size={16} strokeWidth={1.8} />
             <input
               className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+              name="feed-search-desktop"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск по ленте"
               type="search"
@@ -802,6 +803,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
                 <input
                   checked={compactMode}
                   className="h-4 w-4 accent-[var(--color-accent)]"
+                  name="compact-mode"
                   onChange={(event) => setCompactMode(event.target.checked)}
                   type="checkbox"
                 />
@@ -822,6 +824,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           <Search size={16} strokeWidth={1.8} />
           <input
             className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
+            name="feed-search-mobile"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Поиск по ленте"
             type="search"

@@ -38,6 +38,7 @@ export default function PostComposer({ currentUser, onPost }) {
           <textarea
             className="min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
             maxLength={280}
+            name="post-body"
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Напишите новый пост"
             value={draft}

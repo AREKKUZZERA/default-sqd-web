@@ -288,6 +288,7 @@ export default function PostCard({
               <textarea
                 className="min-h-28 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none focus:border-border-strong"
                 maxLength={280}
+                name="post-edit-body"
                 onChange={(event) => setPostDraft(event.target.value)}
                 value={postDraft}
               />
@@ -427,6 +428,7 @@ export default function PostCard({
                               <textarea
                                 className="min-h-20 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
                                 maxLength={280}
+                                name="comment-edit-body"
                                 onChange={(event) => setEditingDraft(event.target.value)}
                                 value={editingDraft}
                               />
@@ -464,6 +466,7 @@ export default function PostCard({
                 className="min-w-0 flex-1 rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm text-text outline-none placeholder:text-muted focus:border-border-strong"
                 disabled={commentSending}
                 maxLength={280}
+                name="comment-body"
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Написать комментарий"
                 ref={commentInputRef}
