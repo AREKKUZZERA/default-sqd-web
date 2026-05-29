@@ -1,6 +1,7 @@
-import { Bell, Home, LogOut, MessageCircle, Search, Settings, UserCircle } from 'lucide-react';
+import { Bell, Home, LogOut, MessageCircle, Search, Settings, ShieldAlert, UserCircle } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
+import ReportDialog from '../features/moderation/ReportDialog.jsx';
 
 import ProfilePanel from '../features/profile/ProfilePanel.jsx';
 import {
@@ -21,6 +22,7 @@ import {
   updateProfile as updateRemoteProfile,
   uploadProfileImage as uploadRemoteProfileImage,
 } from '../shared/api/socialApi.js';
+import { reportContent } from '../shared/api/moderationApi.js';
 import useOnlinePresence from '../shared/hooks/useOnlinePresence.js';
 import { supabase } from '../shared/lib/supabase.js';
 import { applyPresenceStatus } from '../shared/utils/presence.js';
@@ -38,6 +40,7 @@ const mobileNavigation = [
 
 const MessagesPanel = lazy(() => import('../features/messages/MessagesPanel.jsx'));
 const ProfilePage = lazy(() => import('../features/profile/ProfilePage.jsx'));
+const ModerationPanel = lazy(() => import('../features/moderation/ModerationPanel.jsx')); 
 
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -94,9 +97,12 @@ const getPostIdFromPath = () => {
 
 const isSamePostId = (left, right) => String(left || '') === String(right || '');
 
+const hasModerationAccess = (profile) => ['admin', 'administrator', 'moderator', 'mod'].includes(String(profile?.role || '').toLowerCase());
+
 const getInitialView = () => {
   if (getProfileKeyFromPath()) return 'profile';
   if (getMessageConversationIdFromPath() !== null) return 'messages';
+  if (getAppPath().match(/^\/moderation\/?$/)) return 'moderation';
   return 'feed';
 };
 
@@ -163,6 +169,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [activeAuthor, setActiveAuthor] = useState('all');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('default-sqd-density') === 'compact');
   const [backendReady, setBackendReady] = useState(false);
   const [backendError, setBackendError] = useState('');
@@ -315,6 +324,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const activeConversationPathId = activeView === 'messages' ? preferredConversationId : null;
   const isMessageConversationOpen = activeView === 'messages' && Boolean(preferredConversationId);
   const profileMissing = activeView === 'profile' && backendReady && !selectedProfile;
+  const canModerate = hasModerationAccess(displayedUser);
 
   const authorFilters = useMemo(
     () => [
@@ -613,6 +623,11 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     updateBrowserPath('/');
   };
   const navigateView = (target) => {
+    if (target === 'moderation') {
+      showModeration();
+      return;
+    }
+
     if (target === 'profile') {
       showOwnProfile();
       return;
@@ -664,6 +679,45 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     updateBrowserPath('/');
   };
 
+  const openReportDialog = (target) => {
+    setReportError('');
+    setReportTarget(target);
+  };
+
+  const submitReport = async (reason) => {
+    if (!reportTarget || reportBusy) {
+      return;
+    }
+
+    try {
+      setReportBusy(true);
+      setReportError('');
+      await reportContent({ ...reportTarget, reason });
+      setReportTarget(null);
+    } catch (error) {
+      setReportError(error.message);
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
+  const showModeration = () => {
+    if (!canModerate) {
+      return;
+    }
+    setPreferredConversationId(null);
+    setSelectedPostId(null);
+    setActiveView('moderation');
+    updateBrowserPath('/moderation');
+  };
+
+  const openModerationForUser = () => {
+    if (!canModerate) {
+      return;
+    }
+    showModeration();
+  };
+
   const openNotification = (item) => {
     setNotificationsOpen(false);
 
@@ -700,6 +754,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         return;
       }
 
+      if (appPath.match(/^\/moderation\/?$/) && canModerate) {
+        setSelectedPostId(null);
+        setPreferredConversationId(null);
+        setActiveView('moderation');
+        return;
+      }
+
       if (conversationId !== null) {
         setSelectedPostId(null);
         setPreferredConversationId(conversationId || null);
@@ -721,7 +782,9 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       window.removeEventListener('popstate', syncRoute);
       window.removeEventListener('hashchange', syncRoute);
     };
-  }, []);
+  }, [canModerate]);
+
+  const displayedMobileNavigation = canModerate ? [...mobileNavigation, { icon: ShieldAlert, label: 'Модерация', target: 'moderation' }] : mobileNavigation;
 
   return (
     <div
@@ -821,6 +884,10 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           ) : null}
         </div>
 
+        {canModerate ? (
+          <IconButton active={activeView === 'moderation'} icon={ShieldAlert} label="Модерация" onClick={showModeration} />
+        ) : null}
+
         <div className="relative hidden sm:block" ref={settingsRef}>
           <IconButton
             active={settingsOpen}
@@ -898,12 +965,19 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           {activeView === 'messages' ? (
             <MessagesPanel
               currentUser={displayedUser}
+              onReport={openReportDialog}
               expanded
               onConversationPathChange={handleConversationChange}
               onOpenProfile={showProfile}
               onPreferredConversationHandled={clearPreferredConversation}
               people={peopleWithPresence}
               preferredConversationId={activeConversationPathId}
+            />
+          ) : activeView === 'moderation' && canModerate ? (
+            <ModerationPanel
+              currentUser={displayedUser}
+              onOpenProfile={showProfile}
+              people={peopleWithPresence}
             />
           ) : activeView === 'profile' ? (
             <ProfilePage
@@ -942,6 +1016,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
               onDeletePost={deletePost}
               onLoadMore={loadMorePosts}
               onOpenProfile={showProfile}
+              onModerateUser={openModerationForUser}
+              onReport={openReportDialog}
               onSelectAuthor={selectAuthor}
               onTogglePost={togglePost}
               onUpdateComment={updateComment}
@@ -954,11 +1030,21 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </Suspense>
       </main>
 
+      <ReportDialog
+        busy={reportBusy}
+        error={reportError}
+        onCancel={() => setReportTarget(null)}
+        onSubmit={submitReport}
+        open={Boolean(reportTarget)}
+        targetLabel={reportTarget?.targetLabel}
+      />
+
       <nav className={[
-        'fixed inset-x-3 bottom-3 z-50 grid grid-cols-3 gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
+        'fixed inset-x-3 bottom-3 z-50 grid gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
+        canModerate ? 'grid-cols-4' : 'grid-cols-3',
         isMessageConversationOpen ? 'hidden' : '',
       ].join(' ')} aria-label="Мобильная навигация">
-        {mobileNavigation.map((item) => {
+        {displayedMobileNavigation.map((item) => {
           const Icon = item.icon;
           const active = activeView === item.target;
 

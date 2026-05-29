@@ -5,8 +5,8 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.user_blocks (
-  blocker_id uuid not null references public.profiles(id) on delete cascade,
-  blocked_id uuid not null references public.profiles(id) on delete cascade,
+  blocker_id text not null references public.profiles(id) on delete cascade,
+  blocked_id text not null references public.profiles(id) on delete cascade,
   reason text,
   created_at timestamptz not null default now(),
   primary key (blocker_id, blocked_id),
@@ -15,8 +15,8 @@ create table if not exists public.user_blocks (
 
 create table if not exists public.moderation_actions (
   id uuid primary key default gen_random_uuid(),
-  actor_id uuid references public.profiles(id) on delete set null,
-  target_id uuid not null references public.profiles(id) on delete cascade,
+  actor_id text references public.profiles(id) on delete set null,
+  target_id text not null references public.profiles(id) on delete cascade,
   action text not null check (action in ('warning', 'mute', 'ban', 'unmute', 'unban', 'note')),
   reason text not null default '',
   expires_at timestamptz,
@@ -24,7 +24,7 @@ create table if not exists public.moderation_actions (
 );
 
 create table if not exists public.user_safety_state (
-  user_id uuid primary key references public.profiles(id) on delete cascade,
+  user_id text primary key references public.profiles(id) on delete cascade,
   warnings_count integer not null default 0 check (warnings_count >= 0),
   muted_until timestamptz,
   banned_until timestamptz,
@@ -34,11 +34,11 @@ create table if not exists public.user_safety_state (
 
 create table if not exists public.moderation_reports (
   id uuid primary key default gen_random_uuid(),
-  reporter_id uuid not null references public.profiles(id) on delete cascade,
-  target_id uuid references public.profiles(id) on delete set null,
-  post_id uuid references public.posts(id) on delete cascade,
-  comment_id uuid references public.comments(id) on delete cascade,
-  message_id uuid references public.direct_messages(id) on delete cascade,
+  reporter_id text not null references public.profiles(id) on delete cascade,
+  target_id text references public.profiles(id) on delete set null,
+  post_id bigint references public.posts(id) on delete cascade,
+  comment_id bigint references public.comments(id) on delete cascade,
+  message_id bigint references public.direct_messages(id) on delete cascade,
   reason text not null,
   status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'rejected')),
   created_at timestamptz not null default now(),
@@ -49,7 +49,7 @@ create table if not exists public.moderation_reports (
 
 create table if not exists public.content_rate_events (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
+  user_id text not null references public.profiles(id) on delete cascade,
   action text not null check (action in ('post', 'comment', 'message', 'profile_update', 'reaction')),
   content_hash text,
   created_at timestamptz not null default now()
@@ -75,7 +75,7 @@ alter table public.moderation_reports enable row level security;
 alter table public.content_rate_events enable row level security;
 
 create or replace function public.current_profile_id()
-returns uuid
+returns text
 language sql
 stable
 security definer
@@ -84,7 +84,7 @@ as $$
   select id from public.profiles where auth_user_id = auth.uid() limit 1;
 $$;
 
-create or replace function public.is_moderator(check_user_id uuid default public.current_profile_id())
+create or replace function public.is_moderator(check_user_id text default public.current_profile_id())
 returns boolean
 language sql
 stable
@@ -156,7 +156,7 @@ security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
+  uid text := public.current_profile_id();
   state public.user_safety_state%rowtype;
   limit_count integer := 0;
   duplicate_count integer := 0;
@@ -228,7 +228,7 @@ security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
+  uid text := public.current_profile_id();
 begin
   perform public.assert_user_can_write('post', body);
   insert into public.posts(owner_id, text, tags)
@@ -243,8 +243,8 @@ security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
-  post_owner uuid;
+  uid text := public.current_profile_id();
+  post_owner text;
 begin
   perform public.assert_user_can_write('comment', body);
   select owner_id into post_owner from public.posts where id = target_post_id;
@@ -273,7 +273,7 @@ security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
+  uid text := public.current_profile_id();
   blocked boolean := false;
 begin
   perform public.assert_user_can_write('message', body);
@@ -300,14 +300,14 @@ begin
 end;
 $$;
 
-create or replace function public.block_user(target_user_id uuid, reason text default '')
+create or replace function public.block_user(target_user_id text, reason text default '')
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
+  uid text := public.current_profile_id();
 begin
   if uid is null then
     raise exception 'Требуется вход в аккаунт.' using errcode = '28000';
@@ -325,7 +325,7 @@ begin
 end;
 $$;
 
-create or replace function public.unblock_user(target_user_id uuid)
+create or replace function public.unblock_user(target_user_id text)
 returns void
 language plpgsql
 security definer
@@ -338,14 +338,14 @@ begin
 end;
 $$;
 
-create or replace function public.report_content(target_user_id uuid default null, target_post_id uuid default null, target_comment_id uuid default null, target_message_id uuid default null, report_reason text default '')
+create or replace function public.report_content(target_user_id text default null, target_post_id bigint default null, target_comment_id bigint default null, target_message_id bigint default null, report_reason text default '')
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  uid uuid := public.current_profile_id();
+  uid text := public.current_profile_id();
 begin
   if uid is null then
     raise exception 'Требуется вход в аккаунт.' using errcode = '28000';
@@ -356,14 +356,14 @@ begin
 end;
 $$;
 
-create or replace function public.apply_moderation_action(target_user_id uuid, action_name text, reason text default '', expires_at timestamptz default null)
+create or replace function public.apply_moderation_action(target_user_id text, action_name text, reason text default '', expires_at timestamptz default null)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  actor uuid := public.current_profile_id();
+  actor text := public.current_profile_id();
 begin
   if not public.is_moderator(actor) then
     raise exception 'Недостаточно прав модератора.' using errcode = '42501';

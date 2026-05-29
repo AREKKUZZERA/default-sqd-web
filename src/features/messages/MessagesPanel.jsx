@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
+import { ArrowLeft, Flag, MessageSquarePlus, Pencil, Search, SendHorizonal, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   createDirectConversation,
@@ -68,6 +68,7 @@ export default function MessagesPanel({
   onConversationPathChange,
   onOpenProfile,
   onPreferredConversationHandled,
+  onReport,
   people = [],
   preferredConversationId = null,
 }) {
@@ -730,10 +731,11 @@ export default function MessagesPanel({
                                     {message.pending ? 'отправляется' : message.time}
                                     {message.edited && !message.pending ? ' / изменено' : ''}
                                   </p>
-                                  {own && !message.pending && !message.failed ? (
+                                  {!message.pending && !message.failed ? (
                                     <span className="ml-auto inline-flex gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
-                                      <button
-                                        aria-label="Редактировать сообщение"
+                                      {own ? (
+                                        <button
+                                          aria-label="Редактировать сообщение"
                                         className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
                                         disabled={Boolean(busyMessageId)}
                                         onClick={() => startEditMessage(message)}
@@ -741,15 +743,28 @@ export default function MessagesPanel({
                                       >
                                         <Pencil size={14} strokeWidth={1.8} />
                                       </button>
-                                      <button
-                                        aria-label="Удалить сообщение"
-                                        className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
-                                        disabled={Boolean(busyMessageId)}
-                                        onClick={() => removeMessage(message.id)}
-                                        type="button"
-                                      >
-                                        <Trash2 size={14} strokeWidth={1.8} />
-                                      </button>
+                                      ) : null}
+                                      {own ? (
+                                        <button
+                                          aria-label="Удалить сообщение"
+                                          className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                          disabled={Boolean(busyMessageId)}
+                                          onClick={() => removeMessage(message.id)}
+                                          type="button"
+                                        >
+                                          <Trash2 size={14} strokeWidth={1.8} />
+                                        </button>
+                                      ) : (
+                                        <button
+                                          aria-label="Пожаловаться на сообщение"
+                                          className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                          disabled={Boolean(busyMessageId)}
+                                          onClick={() => onReport?.({ messageId: message.id, targetLabel: `сообщение ${activeParticipant?.name || ''}`, targetUserId: message.authorId })}
+                                          type="button"
+                                        >
+                                          <Flag size={14} strokeWidth={1.8} />
+                                        </button>
+                                      )}
                                     </span>
                                   ) : null}
                                 </div>

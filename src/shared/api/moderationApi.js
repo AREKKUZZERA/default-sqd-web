@@ -2,6 +2,20 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
 const getErrorMessage = (error) => error?.message || 'Moderation request failed';
 
+const mapReport = (report = {}) => ({
+  id: report.id,
+  reporterId: report.reporter_id,
+  reporterName: report.reporter_name || '',
+  targetId: report.target_id,
+  targetName: report.target_name || '',
+  postId: report.post_id,
+  commentId: report.comment_id,
+  messageId: report.message_id,
+  reason: report.reason || '',
+  status: report.status || 'open',
+  createdAt: report.created_at,
+});
+
 export async function blockUser(targetUserId, reason = '') {
   if (!isSupabaseConfigured || !targetUserId) return;
 
@@ -45,6 +59,27 @@ export async function applyModerationAction({ action, expiresAt = null, reason =
     expires_at: expiresAt,
     reason,
     target_user_id: targetUserId,
+  });
+
+  if (error) throw new Error(getErrorMessage(error));
+}
+
+export async function fetchModerationReports() {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase.rpc('list_moderation_reports');
+
+  if (error) throw new Error(getErrorMessage(error));
+
+  return (data || []).map(mapReport);
+}
+
+export async function updateReportStatus(reportId, status) {
+  if (!isSupabaseConfigured || !reportId || !status) return;
+
+  const { error } = await supabase.rpc('set_report_status', {
+    next_status: status,
+    report_id: reportId,
   });
 
   if (error) throw new Error(getErrorMessage(error));

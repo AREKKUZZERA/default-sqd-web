@@ -18,6 +18,8 @@ export default function Feed({
   onDeletePost,
   onLoadMore,
   onOpenProfile,
+  onModerateUser,
+  onReport,
   onSelectAuthor,
   onTogglePost,
   onUpdateComment,
@@ -106,6 +108,8 @@ export default function Feed({
               onDeleteComment={onDeleteComment}
               onDelete={onDeletePost}
               onOpenProfile={onOpenProfile}
+              onModerateUser={onModerateUser}
+              onReport={onReport}
               onToggle={onTogglePost}
               onUpdateComment={onUpdateComment}
               onUpdatePost={onUpdatePost}

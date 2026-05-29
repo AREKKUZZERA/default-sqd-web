@@ -1,4 +1,4 @@
-import { Bookmark, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, Trash2 } from 'lucide-react';
+import { Bookmark, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import ConfirmDialog from '../../shared/ui/ConfirmDialog.jsx';
@@ -32,6 +32,8 @@ export default function PostCard({
   onDelete,
   onDeleteComment,
   onOpenProfile,
+  onReport,
+  onModerateUser,
   onToggle,
   onUpdateComment,
   onUpdatePost,
@@ -59,6 +61,7 @@ export default function PostCard({
   const commentsId = `post-comments-${post.id}`;
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
   const isOwner = currentUser?.id === post.ownerId;
+  const canModerate = ['admin', 'administrator', 'moderator', 'mod'].includes(String(currentUser?.role || '').toLowerCase());
   const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
   const activityTone = activityType || 'post';
   const ActivityIcon = activityIconByType[activityTone] || Pencil;
@@ -256,29 +259,53 @@ export default function PostCard({
                 #{tag}
               </span>
             ))}
-            {isOwner ? (
+            {isOwner || post.ownerId !== currentUser?.id ? (
               <span className="ml-auto inline-flex flex-wrap justify-end gap-1">
-                <button
-                  className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:min-h-8"
-                  disabled={postBusy}
-                  onClick={() => {
-                    setEditingPost(true);
-                    setPostDraft(post.text);
-                  }}
-                  type="button"
-                >
-                  <Pencil size={13} strokeWidth={1.8} />
-                  изменить
-                </button>
-                <button
-                  className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:min-h-8"
-                  disabled={postBusy}
-                  onClick={requestDeletePost}
-                  type="button"
-                >
-                  <Trash2 size={13} strokeWidth={1.8} />
-                  удалить
-                </button>
+                {isOwner ? (
+                  <>
+                    <button
+                      className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:min-h-8"
+                      disabled={postBusy}
+                      onClick={() => {
+                        setEditingPost(true);
+                        setPostDraft(post.text);
+                      }}
+                      type="button"
+                    >
+                      <Pencil size={13} strokeWidth={1.8} />
+                      изменить
+                    </button>
+                    <button
+                      className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning disabled:opacity-50 sm:min-h-8"
+                      disabled={postBusy}
+                      onClick={requestDeletePost}
+                      type="button"
+                    >
+                      <Trash2 size={13} strokeWidth={1.8} />
+                      удалить
+                    </button>
+                  </>
+                ) : null}
+                {!isOwner ? (
+                  <button
+                    className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-warning/60 hover:bg-warning/10 hover:text-warning sm:min-h-8"
+                    onClick={() => onReport?.({ postId: post.id, targetLabel: `пост ${post.author}`, targetUserId: post.ownerId })}
+                    type="button"
+                  >
+                    <Flag size={13} strokeWidth={1.8} />
+                    жалоба
+                  </button>
+                ) : null}
+                {canModerate && !isOwner ? (
+                  <button
+                    className="inline-flex min-h-10 items-center gap-1 rounded-sqd-xs border border-warning/45 bg-warning/10 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-warning transition hover:border-warning/70 sm:min-h-8"
+                    onClick={() => onModerateUser?.(post.ownerId)}
+                    type="button"
+                  >
+                    <ShieldAlert size={13} strokeWidth={1.8} />
+                    модерировать
+                  </button>
+                ) : null}
               </span>
             ) : null}
           </div>
@@ -400,26 +427,39 @@ export default function PostCard({
                               {comment.pending ? 'отправляется' : comment.time}
                               {comment.edited && !comment.pending ? ' / изменено' : ''}
                             </span>
-                            {ownComment ? (
+                            {ownComment || !comment.pending ? (
                               <span className="ml-auto inline-flex gap-1">
-                                <button
-                                  aria-label="Редактировать комментарий"
-                                  className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
-                                  disabled={busy || comment.pending}
-                                  onClick={() => startEditComment(comment)}
-                                  type="button"
-                                >
-                                  <Pencil size={14} strokeWidth={1.8} />
-                                </button>
-                                <button
-                                  aria-label="Удалить комментарий"
-                                  className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
-                                  disabled={busy || comment.pending}
-                                  onClick={() => requestDeleteComment(comment.id)}
-                                  type="button"
-                                >
-                                  <Trash2 size={14} strokeWidth={1.8} />
-                                </button>
+                                {ownComment ? (
+                                  <>
+                                    <button
+                                      aria-label="Редактировать комментарий"
+                                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
+                                      disabled={busy || comment.pending}
+                                      onClick={() => startEditComment(comment)}
+                                      type="button"
+                                    >
+                                      <Pencil size={14} strokeWidth={1.8} />
+                                    </button>
+                                    <button
+                                      aria-label="Удалить комментарий"
+                                      className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning disabled:opacity-50 sm:size-8"
+                                      disabled={busy || comment.pending}
+                                      onClick={() => requestDeleteComment(comment.id)}
+                                      type="button"
+                                    >
+                                      <Trash2 size={14} strokeWidth={1.8} />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    aria-label="Пожаловаться на комментарий"
+                                    className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-warning/60 hover:text-warning sm:size-8"
+                                    onClick={() => onReport?.({ commentId: comment.id, targetLabel: `комментарий ${comment.author}`, targetUserId: comment.authorId })}
+                                    type="button"
+                                  >
+                                    <Flag size={14} strokeWidth={1.8} />
+                                  </button>
+                                )}
                               </span>
                             ) : null}
                           </div>
