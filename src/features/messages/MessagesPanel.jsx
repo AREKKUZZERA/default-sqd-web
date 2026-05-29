@@ -1,5 +1,5 @@
 import { MessageSquarePlus, Search, SendHorizonal } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createDirectConversation,
   fetchConversations,
@@ -25,6 +25,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const realtimeReloadTimerRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
     if (!currentUser?.id) {
@@ -52,11 +53,10 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       setError('');
       const messages = await fetchMessages(conversationId);
       setMessagesByConversation((items) => ({ ...items, [conversationId]: messages }));
-      await markConversationRead({ conversationId, currentUserId: currentUser.id });
     } catch (loadError) {
       setError(loadError.message);
     }
-  }, [activeId, currentUser.id]);
+  }, [activeId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadConversations);
@@ -67,29 +67,35 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       return undefined;
     }
 
-    const reloadMessages = () => {
-      void loadConversations();
-      void loadActiveMessages();
+    const scheduleReloadMessages = () => {
+      window.clearTimeout(realtimeReloadTimerRef.current);
+      realtimeReloadTimerRef.current = window.setTimeout(() => {
+        void loadConversations();
+
+        if (activeId) {
+          void loadActiveMessages(activeId);
+        }
+      }, 350);
     };
 
     const channel = supabase
       .channel(`default-sqd-messages-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_members' }, reloadMessages)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, reloadMessages)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, scheduleReloadMessages)
       .subscribe();
 
     return () => {
+      window.clearTimeout(realtimeReloadTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [currentUser?.id, loadActiveMessages, loadConversations]);
+  }, [activeId, currentUser?.id, loadActiveMessages, loadConversations]);
 
   useEffect(() => {
-    if (!activeId || messagesByConversation[activeId]) {
+    if (!activeId) {
       return;
     }
 
     void Promise.resolve().then(() => loadActiveMessages(activeId));
-  }, [activeId, loadActiveMessages, messagesByConversation]);
+  }, [activeId, loadActiveMessages]);
 
   const filteredConversations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -117,6 +123,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
       setActiveId(id);
       setDirectoryOpen(false);
       await loadConversations();
+      await loadActiveMessages(id);
     } catch (createError) {
       setError(createError.message);
     }
@@ -126,6 +133,7 @@ export default function MessagesPanel({ currentUser, expanded = false, people = 
     setActiveId(conversationId);
     try {
       await markConversationRead({ conversationId, currentUserId: currentUser.id });
+      await loadActiveMessages(conversationId);
       await loadConversations();
     } catch (readError) {
       setError(readError.message);
