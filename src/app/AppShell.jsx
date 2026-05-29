@@ -32,16 +32,47 @@ const mobileNavigation = [
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
+const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const stripBasePath = (pathname = window.location.pathname) => {
+  if (!APP_BASE_PATH || APP_BASE_PATH === '/') {
+    return pathname || '/';
+  }
+
+  if (pathname === APP_BASE_PATH) {
+    return '/';
+  }
+
+  if (pathname.startsWith(`${APP_BASE_PATH}/`)) {
+    return pathname.slice(APP_BASE_PATH.length) || '/';
+  }
+
+  return pathname || '/';
+};
+
+const withBasePath = (path) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  if (!APP_BASE_PATH || APP_BASE_PATH === '/') {
+    return normalizedPath;
+  }
+
+  return normalizedPath === '/' ? `${APP_BASE_PATH}/` : `${APP_BASE_PATH}${normalizedPath}`;
+};
+
 const getProfileKeyFromPath = () => {
-  const match = window.location.pathname.match(/^\/profile\/([^/]+)\/?$/);
+  const appPath = stripBasePath();
+  const match = appPath.match(/^\/profile\/([^/]+)\/?$/);
   return match ? decodeURIComponent(match[1]) : '';
 };
 
 const getInitialView = () => (getProfileKeyFromPath() ? 'profile' : 'feed');
 
 const updateBrowserPath = (path) => {
-  if (window.location.pathname !== path) {
-    window.history.pushState({}, '', path);
+  const nextPath = withBasePath(path);
+
+  if (window.location.pathname !== nextPath) {
+    window.history.pushState({}, '', nextPath);
   }
 };
 
