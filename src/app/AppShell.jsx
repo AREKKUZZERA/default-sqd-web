@@ -548,13 +548,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   return (
     <div
       className={[
-        'poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-6 sm:py-4 lg:px-8',
+        'poster-app min-h-screen px-3 pb-24 pt-3 text-text sm:px-5 sm:py-5 lg:px-8',
         activeView === 'messages' ? 'poster-app--messages' : '',
       ].join(' ')}
       data-active-view={activeView}
       data-density={compactMode ? 'compact' : 'default'}
     >
-      <header className="poster-header sticky top-3 z-50 mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-md border border-border bg-bg-soft/92 px-3 py-3 shadow-[var(--shadow-panel)] backdrop-blur-md sm:gap-3">
+      <header className="poster-header sticky top-3 z-50 mx-auto mb-5 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-md border border-border bg-bg-soft/92 px-3 py-3 shadow-[var(--shadow-panel)] backdrop-blur-md sm:gap-3">
         <button aria-label="Открыть ленту" className="flex min-w-0 items-center gap-3 text-left" onClick={showFeed} type="button">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sqd-sm border border-border bg-accent-soft font-ui text-sm font-bold leading-none text-text">
             SQD
@@ -564,7 +564,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           </span>
         </button>
 
-        <label className="ml-auto hidden min-w-56 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft transition-within focus-within:border-border-strong lg:flex">
+        <label className="ml-auto hidden min-w-56 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text-soft transition focus-within:border-border-strong lg:flex">
           <Search size={16} strokeWidth={1.8} />
           <input
             className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
@@ -670,7 +670,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </button>
       </header>
 
-      <label className="poster-mobile-search mx-auto mb-4 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition-within focus-within:border-border-strong lg:hidden">
+      <label className="poster-mobile-search mx-auto mb-5 flex max-w-[var(--shell-width)] items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/75 px-3 py-2 text-text-soft shadow-[var(--shadow-panel)] transition focus-within:border-border-strong lg:hidden">
         <Search size={16} strokeWidth={1.8} />
         <input
           className="w-full border-0 bg-transparent text-sm text-text outline-none placeholder:text-muted"
@@ -693,7 +693,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         </div>
       ) : null}
 
-      <main className="poster-main mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <main className="poster-main mx-auto grid max-w-[var(--shell-width)] gap-4 lg:grid-cols-[288px_minmax(0,1fr)]">
         <aside className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
           <ProfilePanel
             activeView={activeView}

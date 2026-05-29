@@ -8,6 +8,13 @@ const sidebarNavigation = [
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
+function getMiniNameStyle(name = '') {
+  const length = Array.from(name || '').length;
+  const size = Math.max(1.28, 1.82 - Math.max(0, length - 11) * 0.07);
+
+  return { fontSize: `${size.toFixed(2)}rem` };
+}
+
 export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, trends }) {
   const visibleTrends = trends.slice(0, 5);
 
@@ -16,7 +23,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
       <Panel className="profile-mini-card overflow-hidden">
         <button className="block w-full text-left" onClick={onOpenProfile} type="button">
           <div
-            className="poster-band h-24 border-b border-border bg-cover bg-center"
+            className="profile-mini-band poster-band h-24 border-b border-border bg-cover bg-center"
             style={currentUser.bannerImage ? { backgroundImage: `url(${currentUser.bannerImage})` } : undefined}
           />
         </button>
@@ -26,13 +33,13 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
               <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
             </button>
-            <span className="rounded-sqd-xs border border-positive/45 bg-positive-soft px-3 py-2 text-xs font-bold uppercase text-positive">
+            <span className="status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase">
               {currentUser.status || 'online'}
             </span>
           </div>
 
           <button className="mt-4 block w-full text-left" onClick={onOpenProfile} type="button">
-            <h2 className="profile-mini-name poster-title font-display text-4xl leading-none text-text">{currentUser.name}</h2>
+            <h2 className="profile-mini-name poster-title font-display leading-none text-text" style={getMiniNameStyle(currentUser.name)} title={currentUser.name}>{currentUser.name}</h2>
             <p className="mt-1 font-mono text-[0.68rem] text-muted">@{currentUser.userId}</p>
           </button>
 
@@ -63,9 +70,9 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
             return (
               <button
                 className={[
-                  'flex w-full items-center gap-2 rounded-sqd-sm border px-3 py-3 text-left font-ui text-sm font-bold transition',
+                  'side-nav-item flex w-full items-center gap-2 rounded-sqd-sm border px-3 py-3 text-left font-ui text-sm font-bold transition',
                   activeView === item.target
-                    ? 'border-border-strong bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]'
+                    ? 'side-nav-item--active border-border-strong bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]'
                     : 'border-border bg-surface-2/65 text-text-soft hover:border-border-strong hover:bg-surface-3/80 hover:text-text',
                 ].join(' ')}
                 key={item.target}
@@ -89,7 +96,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
           {visibleTrends.length > 0 ? (
             visibleTrends.map((trend) => (
               <button
-                className="block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface-3/80 hover:shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
+                className="trend-card block w-full rounded-sqd-sm border border-border bg-surface-2/65 p-3 text-left transition hover:border-border-strong hover:bg-surface-3/80"
                 key={trend.tag}
                 onClick={() => onSelectTopic(trend.tag)}
                 type="button"

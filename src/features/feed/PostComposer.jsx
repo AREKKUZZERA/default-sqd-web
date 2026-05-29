@@ -31,7 +31,7 @@ export default function PostComposer({ currentUser, onPost }) {
   };
 
   return (
-    <form className="rounded-sqd-md border border-border-strong bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
+    <form className="rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
       <div className="flex gap-3">
         <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} />
         <div className="min-w-0 flex-1">
@@ -58,7 +58,7 @@ export default function PostComposer({ currentUser, onPost }) {
                 {remaining}
               </span>
               <button
-                className="inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition hover:bg-surface-3 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
+                className="sqd-button inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
                 disabled={!draft.trim() || sending}
                 type="submit"
               >

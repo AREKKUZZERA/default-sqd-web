@@ -35,9 +35,9 @@ export default function Feed({
           {authors.map((author) => (
             <button
               className={[
-                'min-w-fit rounded-sqd-xs border px-3 py-2 text-left transition',
+                'author-filter min-w-fit rounded-sqd-xs border px-3 py-2 text-left transition',
                 activeAuthor === author.value
-                  ? 'border-border-strong bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]'
+                  ? 'author-filter--active border-border-strong bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]'
                   : 'border-border bg-surface-2/65 text-text-soft hover:border-border-strong hover:bg-surface-3/80 hover:text-text',
               ].join(' ')}
               key={author.value}

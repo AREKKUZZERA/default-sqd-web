@@ -6,6 +6,13 @@ import Panel from '../../shared/ui/Panel.jsx';
 
 const INITIAL_VISIBLE_COMMENTS = 10;
 
+const activityIconByType = {
+  bookmark: Bookmark,
+  like: Heart,
+  post: Pencil,
+  repost: Repeat2,
+};
+
 export default function PostCard({
   compact = false,
   currentUser,
@@ -18,6 +25,7 @@ export default function PostCard({
   onUpdateComment,
   onUpdatePost,
   activityLabel = '',
+  activityType = '',
 }) {
   const [commentOpen, setCommentOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -39,6 +47,14 @@ export default function PostCard({
   const tags = post.tags?.length ? post.tags : [post.tag].filter(Boolean);
   const isOwner = currentUser?.id === post.ownerId;
   const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
+  const activityTone = activityType || 'post';
+  const ActivityIcon = activityIconByType[activityTone] || Pencil;
+  const activityTypeLabel = {
+    bookmark: 'сохранено',
+    like: 'лайк',
+    post: 'публикация',
+    repost: 'репост',
+  }[activityTone] || 'активность';
 
   const handleCommentSubmit = async (event) => {
     event.preventDefault();
@@ -181,11 +197,19 @@ export default function PostCard({
   };
 
   return (
-    <Panel as="article" className={[compact ? 'p-3' : 'p-3.5 sm:p-4', cardTone, 'post-card transition hover:-translate-y-0.5 hover:border-border-strong hover:bg-surface/95 hover:shadow-[0_18px_44px_rgba(0,0,0,0.32)]'].join(' ')}>
+    <Panel as="article" className={[compact ? 'p-3' : 'p-3.5 sm:p-4', cardTone, 'post-card transition'].join(' ')}>
       {activityLabel ? (
-        <div className="activity-ribbon mb-3 flex flex-wrap items-center gap-2 rounded-sqd-sm border border-border bg-bg-soft/55 px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft">
-          <span className="activity-ribbon__dot" aria-hidden="true" />
-          {activityLabel}
+        <div
+          className={[
+            'activity-ribbon mb-3 flex flex-wrap items-center gap-2 rounded-sqd-sm border px-3 py-2 font-mono text-[0.62rem] uppercase tracking-[0.08em]',
+            `activity-ribbon--${activityTone}`,
+          ].join(' ')}
+        >
+          <span className="activity-ribbon__icon" aria-hidden="true">
+            <ActivityIcon size={13} strokeWidth={1.8} />
+          </span>
+          <span className="activity-ribbon__type">{activityTypeLabel}</span>
+          <span className="activity-ribbon__label">{activityLabel}</span>
         </div>
       ) : null}
       <div className="flex gap-2.5 sm:gap-3">
@@ -215,7 +239,10 @@ export default function PostCard({
               </span>
             ))}
             {isOwner ? (
-              <span className="ml-auto inline-flex gap-1">
+              <span className="ml-auto inline-flex flex-wrap justify-end gap-1">
+                <span className="owner-chip inline-flex h-8 items-center rounded-sqd-xs border px-2 font-mono text-[0.56rem] font-bold uppercase tracking-[0.08em]">
+                  твоя запись
+                </span>
                 <button
                   className="inline-flex h-8 items-center gap-1 rounded-sqd-xs border border-border bg-surface-2/60 px-2 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50"
                   disabled={busyDelete}
@@ -237,7 +264,7 @@ export default function PostCard({
                   <Trash2 size={13} strokeWidth={1.8} />
                   удалить
                 </button>
-              </span>
+                </span>
             ) : null}
           </div>
 

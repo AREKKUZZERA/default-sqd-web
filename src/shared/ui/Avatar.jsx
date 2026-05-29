@@ -15,7 +15,7 @@ export default function Avatar({ label, image, size = 'md', active = false }) {
     >
       {image ? <img alt="" className="h-full w-full rounded-sqd-sm object-cover" src={image} /> : label}
       {active ? (
-        <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border border-bg bg-positive" />
+        <span className="avatar-status-dot absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border border-bg bg-positive" />
       ) : null}
     </span>
   );

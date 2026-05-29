@@ -7,30 +7,30 @@ import PostCard from '../feed/PostCard.jsx';
 
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
-function getProfileActivityLabel(post, profileUser) {
+function getProfileActivity(post, profileUser) {
   if (!profileUser?.id) {
-    return '';
+    return { label: '', type: '' };
   }
 
   const name = profileUser.name || profileUser.userId || 'Пользователь';
 
   if (post.ownerId === profileUser.id) {
-    return `${name} опубликовал(а) пост`;
+    return { label: `${name} опубликовал(а) пост`, type: 'post' };
   }
 
   if (post.repostedBy?.includes(profileUser.id)) {
-    return `${name} сделал(а) репост`;
+    return { label: `${name} репостнул(а) запись`, type: 'repost' };
   }
 
   if (post.likedBy?.includes(profileUser.id)) {
-    return `${name} лайкнул(а) запись`;
+    return { label: `${name} лайкнул(а) запись`, type: 'like' };
   }
 
   if (post.bookmarkedBy?.includes(profileUser.id)) {
-    return `${name} сохранил(а) запись`;
+    return { label: `${name} сохранил(а) запись`, type: 'bookmark' };
   }
 
-  return '';
+  return { label: '', type: '' };
 }
 
 const IMAGE_PRESETS = {
@@ -259,7 +259,7 @@ export default function ProfilePage({
     <section className="min-w-0">
       <Panel className="mb-4 overflow-hidden">
         <div
-          className="poster-band h-36 border-b border-border bg-cover bg-center"
+          className="profile-hero-band poster-band h-36 border-b border-border bg-cover bg-center"
           style={profileUser.bannerImage ? { backgroundImage: `url(${profileUser.bannerImage})` } : undefined}
         />
         <div className="-mt-10 p-5">
@@ -267,7 +267,7 @@ export default function ProfilePage({
             <Avatar active={profileUser.status === 'online'} image={profileUser.avatarImage} label={profileUser.avatar} size="lg" />
             {isOwnProfile ? (
               <button
-                className="rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
+                className="sqd-button rounded-sqd-xs border border-border bg-surface-2/70 px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text"
                 onClick={() => {
                   setEditing((value) => !value);
                   setFormError('');
@@ -279,7 +279,7 @@ export default function ProfilePage({
               </button>
             ) : (
               <button
-                className="inline-flex items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
+                className="sqd-button inline-flex items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
                 onClick={() => onMessage?.(profileUser.id)}
                 type="button"
               >
@@ -443,7 +443,7 @@ export default function ProfilePage({
           ) : null}
 
           <div className="mt-5">
-            <h1 className="profile-page-name poster-title font-display text-5xl leading-none text-text">{profileUser.name}</h1>
+            <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
             <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">
               @{profileUser.userId} / {profileUser.role}
             </p>
@@ -465,21 +465,26 @@ export default function ProfilePage({
 
       <div className="grid gap-4">
         {wallPosts.length > 0 ? (
-          wallPosts.map((post) => (
-            <PostCard
-              currentUser={currentUser}
-              key={post.id}
-              onComment={onCommentPost}
-              onDeleteComment={onDeleteComment}
-              onDelete={onDeletePost}
-              onOpenProfile={onOpenProfile}
-              onToggle={onTogglePost}
-              onUpdateComment={onUpdateComment}
-              onUpdatePost={onUpdatePost}
-              post={post}
-              activityLabel={getProfileActivityLabel(post, profileUser)}
-            />
-          ))
+          wallPosts.map((post) => {
+            const activity = getProfileActivity(post, profileUser);
+
+            return (
+              <PostCard
+                currentUser={currentUser}
+                key={post.id}
+                onComment={onCommentPost}
+                onDeleteComment={onDeleteComment}
+                onDelete={onDeletePost}
+                onOpenProfile={onOpenProfile}
+                onToggle={onTogglePost}
+                onUpdateComment={onUpdateComment}
+                onUpdatePost={onUpdatePost}
+                post={post}
+                activityLabel={activity.label}
+                activityType={activity.type}
+              />
+            );
+          })
         ) : (
           <Panel className="p-6 text-center">
             <p className="font-ui text-lg font-bold text-text">Стена пока пустая</p>
