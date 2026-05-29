@@ -125,6 +125,24 @@ const getWallPosts = (profileId, posts) =>
       post.bookmarkedBy?.includes(profileId),
   );
 
+const PROFILE_RELOAD_FIELDS = ['avatar', 'avatar_image', 'banner_image', 'bio', 'name', 'role', 'status', 'user_id'];
+
+const shouldReloadForProfileChange = (payload) => {
+  if (payload.eventType !== 'UPDATE') {
+    return true;
+  }
+
+  const oldProfile = payload.old || {};
+  const nextProfile = payload.new || {};
+  const hasComparableOldProfile = PROFILE_RELOAD_FIELDS.some((field) => Object.hasOwn(oldProfile, field));
+
+  if (!hasComparableOldProfile) {
+    return true;
+  }
+
+  return PROFILE_RELOAD_FIELDS.some((field) => oldProfile[field] !== nextProfile[field]);
+};
+
 export default function AppShell({ authenticatedUser, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
@@ -207,10 +225,15 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         void loadRemoteData();
       }, 350);
     };
+    const scheduleProfileReload = (payload) => {
+      if (shouldReloadForProfileChange(payload)) {
+        scheduleRemoteReload();
+      }
+    };
 
     const channel = supabase
       .channel(`default-sqd-release-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleProfileReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, scheduleRemoteReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, scheduleRemoteReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, scheduleRemoteReload)

@@ -19,12 +19,14 @@ const NOTIFICATION_LABELS = {
 const MEDIA_BUCKET = 'avatars';
 const POST_PAGE_SIZE = 20;
 const SIGNED_MEDIA_TTL = 60 * 60;
+const SIGNED_MEDIA_CACHE_GRACE_SECONDS = 5 * 60;
 const STORAGE_OBJECT_PREFIXES = [
   `/storage/v1/object/public/${MEDIA_BUCKET}/`,
   `/storage/v1/object/sign/${MEDIA_BUCKET}/`,
   `/storage/v1/object/authenticated/${MEDIA_BUCKET}/`,
   `/storage/v1/object/${MEDIA_BUCKET}/`,
 ];
+const signedMediaCache = new Map();
 
 const isRemoteOrInlineImage = (value = '') => /^(?:data:|blob:|https?:\/\/)/i.test(value);
 
@@ -70,17 +72,41 @@ const getSignedMediaMap = async (paths = []) => {
     return new Map();
   }
 
-  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(uniquePaths, SIGNED_MEDIA_TTL);
+  const now = Date.now();
+  const mediaMap = new Map();
+  const missingPaths = [];
 
-  if (error) {
-    return new Map();
+  uniquePaths.forEach((path) => {
+    const cached = signedMediaCache.get(path);
+
+    if (cached && cached.expiresAt > now) {
+      mediaMap.set(path, cached.signedUrl);
+      return;
+    }
+
+    missingPaths.push(path);
+  });
+
+  if (missingPaths.length === 0) {
+    return mediaMap;
   }
 
-  return new Map(
-    (data || [])
-      .filter((item) => item?.path && item?.signedUrl)
-      .map((item) => [item.path, item.signedUrl]),
-  );
+  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(missingPaths, SIGNED_MEDIA_TTL);
+
+  if (error) {
+    return mediaMap;
+  }
+
+  const expiresAt = now + Math.max(0, SIGNED_MEDIA_TTL - SIGNED_MEDIA_CACHE_GRACE_SECONDS) * 1000;
+
+  (data || [])
+    .filter((item) => item?.path && item?.signedUrl)
+    .forEach((item) => {
+      signedMediaCache.set(item.path, { expiresAt, signedUrl: item.signedUrl });
+      mediaMap.set(item.path, item.signedUrl);
+    });
+
+  return mediaMap;
 };
 
 const resolveMediaUrl = (value = '', mediaMap = new Map()) => {
