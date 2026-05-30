@@ -35,7 +35,7 @@ import Panel from '../shared/ui/Panel.jsx';
 const mobileNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
-  { icon: FileText, label: 'Общее', target: 'changelog' },
+  { icon: FileText, label: 'Общий список', target: 'changelog' },
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
@@ -152,6 +152,15 @@ const shouldReloadForProfileChange = (payload) => {
   return PROFILE_RELOAD_FIELDS.some((field) => oldProfile[field] !== nextProfile[field]);
 };
 
+const formatSectionCount = (count) => {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+
+  if (mod10 === 1 && mod100 !== 11) return `${count} раздел`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} раздела`;
+  return `${count} разделов`;
+};
+
 
 function ChangelogPanel() {
   const days = [
@@ -191,7 +200,7 @@ function ChangelogPanel() {
                 <p className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted">первые посты по дням</p>
                 <h2 className="mt-1 font-ui text-xl font-bold text-text">{day.date}</h2>
               </div>
-              <span className="changelog-date-badge rounded-sqd-xs border px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em]">{day.sections.length} раздела</span>
+              <span className="changelog-date-badge rounded-sqd-xs border px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em]">{formatSectionCount(day.sections.length)}</span>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {day.sections.map((section) => (
@@ -829,6 +838,13 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
         setSelectedPostId(null);
         setPreferredConversationId(null);
         setActiveView('moderation');
+        return;
+      }
+
+      if (appPath.match(/^\/changelog\/?$/)) {
+        setSelectedPostId(null);
+        setPreferredConversationId(null);
+        setActiveView('changelog');
         return;
       }
 

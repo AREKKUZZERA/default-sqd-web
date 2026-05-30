@@ -1,5 +1,5 @@
-import { CheckCircle2, Clock3, FileText, Flag, ShieldAlert, UserRound, XCircle } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronRight, Clock3, FileText, Flag, ShieldAlert, UserRound, X, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { MAX_REPORT_REASON_LENGTH } from '../../shared/constants/content.js';
 import { applyModerationAction, fetchModerationReports, updateReportStatus } from '../../shared/api/moderationApi.js';
 import Panel from '../../shared/ui/Panel.jsx';
@@ -95,6 +95,8 @@ function ReportToastStack({ toasts }) {
 
 function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, report }) {
   const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
+  const DisclosureIcon = expanded ? ChevronDown : ChevronRight;
   const contentLabel = reportTargetLabel(report);
   const contentId = reportContentId(report);
   const hasContentText = Boolean(report.contentText?.trim());
@@ -102,6 +104,7 @@ function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, repor
   return (
     <article className="rounded-sqd-sm border border-border bg-bg-soft/75 p-3.5 transition hover:border-border-strong hover:bg-surface-2/70">
       <button
+        aria-controls={detailsId}
         aria-expanded={expanded}
         className="block w-full text-left"
         onClick={() => setExpanded((value) => !value)}
@@ -117,14 +120,15 @@ function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, repor
               создан {formatDate(report.createdAt)} / объект {contentLabel.toLowerCase()} #{contentId}
             </p>
           </div>
-          <span className="rounded-sqd-xs border border-border bg-surface-2/70 px-2.5 py-1.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.08em] text-text-soft">
+          <span className="inline-flex items-center gap-1.5 rounded-sqd-xs border border-border bg-surface-2/70 px-2.5 py-1.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.08em] text-text-soft">
+            <DisclosureIcon aria-hidden="true" size={13} strokeWidth={1.9} />
             {expanded ? 'свернуть' : 'раскрыть'}
           </span>
         </div>
       </button>
 
       {expanded ? (
-      <div className="mt-3 border-t border-border pt-3">
+      <div className="mt-3 border-t border-border pt-3" id={detailsId}>
         <div className="mb-3 flex justify-end">
           <label className="grid min-w-[11rem] gap-1 text-xs font-bold uppercase tracking-[0.08em] text-muted">
             Статус
@@ -204,9 +208,9 @@ function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, repor
   );
 }
 
-function ReportsSection({ busy, emptyText, onOpenProfile, onSelectTarget, onStatusChange, reports, title }) {
+function ReportsSection({ busy, emptyText, onOpenProfile, onSelectTarget, onStatusChange, panelId, reports, tabId, title }) {
   return (
-    <div className="grid gap-2">
+    <div aria-labelledby={tabId} className="grid gap-2" id={panelId} role="tabpanel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-ui text-base font-bold text-text">{title}</h3>
         <span className="rounded-sqd-xs border border-border bg-surface-2/70 px-2.5 py-1 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted">{reports.length}</span>
@@ -243,6 +247,11 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
   const [toasts, setToasts] = useState([]);
   const [activeReportView, setActiveReportView] = useState('active');
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
+  const activeReportsTabId = 'moderation-reports-tab-active';
+  const resolvedReportsTabId = 'moderation-reports-tab-resolved';
+  const activeReportsPanelId = 'moderation-reports-panel-active';
+  const resolvedReportsPanelId = 'moderation-reports-panel-resolved';
+  const sentenceTitleId = 'moderation-sentence-title';
 
   const targets = useMemo(() => people.filter((person) => person.id !== currentUser?.id), [currentUser?.id, people]);
 
@@ -276,7 +285,28 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
     return () => window.clearTimeout(timerId);
   }, [initialTargetUserId, onInitialTargetHandled]);
 
-  const selectedTargetUserId = targetUserId || targets[0]?.id || '';
+  useEffect(() => {
+    if (!sentenceModalOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !busy) {
+        setSentenceModalOpen(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [busy, sentenceModalOpen]);
+
+  const selectedTargetUserId = targetUserId || '';
   const displayedReports = activeReportView === 'resolved' ? resolvedReports : activeReports;
 
   const pushReportToast = useCallback((report, status) => {
@@ -312,8 +342,10 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
         reason: reason.trim(),
         targetUserId: selectedTargetUserId,
       });
-      setNotice('Действие применено. Серверная защита начнёт учитывать его сразу.');
+      setNotice('\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u043e. \u0421\u0435\u0440\u0432\u0435\u0440\u043d\u0430\u044f \u0437\u0430\u0449\u0438\u0442\u0430 \u043d\u0430\u0447\u043d\u0451\u0442 \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0442\u044c \u0435\u0433\u043e \u0441\u0440\u0430\u0437\u0443.');
       setReason('');
+      setSentenceModalOpen(false);
+      setTargetUserId('');
       await loadReports();
     } catch (applyError) {
       setError(applyError.message);
@@ -374,17 +406,25 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
             </button>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-2 rounded-sqd-sm border border-border bg-bg-soft/55 p-1">
+          <div aria-label="Разделы жалоб" className="mb-4 grid grid-cols-2 gap-2 rounded-sqd-sm border border-border bg-bg-soft/55 p-1" role="tablist">
             <button
+              aria-controls={activeReportsPanelId}
+              aria-selected={activeReportView === 'active'}
               className={["rounded-sqd-xs px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] transition", activeReportView === 'active' ? 'bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]' : 'text-text-soft hover:bg-surface-2/70'].join(' ')}
+              id={activeReportsTabId}
               onClick={() => setActiveReportView('active')}
+              role="tab"
               type="button"
             >
               Активные · {activeReports.length}
             </button>
             <button
+              aria-controls={resolvedReportsPanelId}
+              aria-selected={activeReportView === 'resolved'}
               className={["rounded-sqd-xs px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] transition", activeReportView === 'resolved' ? 'bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]' : 'text-text-soft hover:bg-surface-2/70'].join(' ')}
+              id={resolvedReportsTabId}
               onClick={() => setActiveReportView('resolved')}
+              role="tab"
               type="button"
             >
               Решено · {resolvedReports.length}
@@ -397,20 +437,22 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
             onOpenProfile={onOpenProfile}
             onSelectTarget={(id) => { setTargetUserId(id); setSentenceModalOpen(true); }}
             onStatusChange={changeReportStatus}
+            panelId={activeReportView === 'active' ? activeReportsPanelId : resolvedReportsPanelId}
             reports={displayedReports}
+            tabId={activeReportView === 'active' ? activeReportsTabId : resolvedReportsTabId}
             title={activeReportView === 'active' ? 'Активные репорты' : 'Решенные проблемы'}
           />
         </Panel>
 
         {sentenceModalOpen ? (
-          <div className="fixed inset-0 z-[110] grid place-items-center bg-black/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div aria-labelledby={sentenceTitleId} aria-modal="true" className="fixed inset-0 z-[110] grid place-items-center bg-black/55 p-4 backdrop-blur-sm" role="dialog">
             <Panel className="w-full max-w-md p-3 sm:p-4">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-ui text-lg font-bold text-text">Вынести приговор</h2>
+                  <h2 className="font-ui text-lg font-bold text-text" id={sentenceTitleId}>Вынести приговор</h2>
                   <p className="mt-1 text-sm text-muted">Выберите действие, срок и причину для выбранного нарушителя.</p>
                 </div>
-                <button className="rounded-sqd-xs border border-border bg-surface-2/70 px-2 py-1 text-text-soft" onClick={() => setSentenceModalOpen(false)} type="button">×</button>
+                <button aria-label="Закрыть окно приговора" className="grid size-9 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-text-soft transition hover:border-border-strong hover:text-text" onClick={() => setSentenceModalOpen(false)} type="button"><X size={15} strokeWidth={1.9} /></button>
               </div>
 
           <h2 className="sr-only">Действие модератора</h2>
@@ -419,6 +461,7 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
             <label className="grid gap-1 text-sm text-text-soft">
               Пользователь
               <select className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-text outline-none focus:border-border-strong" onChange={(event) => setTargetUserId(event.target.value)} value={selectedTargetUserId}>
+                <option value="">Выберите пользователя</option>
                 {targets.map((person) => <option key={person.id} value={person.id}>{person.name} / @{person.userId}</option>)}
               </select>
             </label>

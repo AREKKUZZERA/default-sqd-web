@@ -1,4 +1,4 @@
-import { Bookmark, Eye, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2 } from 'lucide-react';
+import { Bookmark, Check, Eye, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { MAX_COMMENT_LENGTH, MAX_POST_LENGTH } from '../../shared/constants/content.js';
 import { hasModerationPermission } from '../../shared/utils/permissions.js';
@@ -72,8 +72,8 @@ export default function PostCard({
   const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
   const activityTone = activityType || 'post';
   const ActivityIcon = activityIconByType[activityTone] || Pencil;
-  useAutosizeTextarea(postEditRef, postDraft, { maxHeight: 560 });
-  useAutosizeTextarea(commentEditRef, editingDraft, { maxHeight: 360 });
+  useAutosizeTextarea(postEditRef, postDraft, { maxHeight: 560, resizeKey: editingPost });
+  useAutosizeTextarea(commentEditRef, editingDraft, { maxHeight: 360, resizeKey: editingCommentId || '' });
 
   const activityTypeLabel = {
     bookmark: 'сохранено',
@@ -341,9 +341,9 @@ export default function PostCard({
           </div>
 
           {editingPost ? (
-            <div className="relative mt-2 grid gap-2 pb-12">
+            <div className="post-edit-shell relative mt-2 grid gap-2 pb-14">
               <textarea
-                className="autosize-textarea min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition focus:border-border-strong"
+                className="autosize-textarea min-h-24 w-full resize-y rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition focus:border-border-strong"
                 maxLength={MAX_POST_LENGTH}
                 name="post-edit-body"
                 onChange={(event) => setPostDraft(event.target.value)}
@@ -351,7 +351,7 @@ export default function PostCard({
                 ref={postEditRef}
                 value={postDraft}
               />
-              <p className={["justify-self-start font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
+              <p className={["post-edit-count justify-self-start pr-32 font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {MAX_POST_LENGTH - postDraft.length}
               </p>
               {postPreviewOpen && postDraft.trim() ? (
@@ -360,7 +360,7 @@ export default function PostCard({
                   <MarkdownBody className="text-sm leading-6 text-text-soft" value={postDraft.trim()} />
                 </div>
               ) : null}
-              <div className="absolute bottom-0 right-0 flex items-center gap-2" aria-label="Действия редактирования поста">
+              <div className="post-edit-actions absolute bottom-0 right-0 flex items-center gap-2" aria-label="Действия редактирования поста">
                 <button
                   aria-label={postPreviewOpen ? 'Скрыть предпросмотр' : 'Показать предпросмотр'}
                   className="sqd-icon-action sqd-icon-action--preview grid size-10 place-items-center rounded-sqd-xs border transition disabled:opacity-50"
@@ -373,13 +373,13 @@ export default function PostCard({
                 </button>
                 <button
                   aria-label={postBusy ? 'Сохраняем пост' : 'Сохранить пост'}
-                  className="sqd-icon-action sqd-icon-action--publish grid size-10 place-items-center rounded-sqd-xs border transition disabled:opacity-50"
+                  className="sqd-icon-action sqd-icon-action--save grid size-10 place-items-center rounded-sqd-xs border transition disabled:opacity-50"
                   disabled={!postDraft.trim() || postBusy}
                   onClick={handlePostUpdate}
                   title={postBusy ? 'Сохраняем' : 'Сохранить'}
                   type="button"
                 >
-                  <Send size={16} strokeWidth={1.9} />
+                  <Check size={16} strokeWidth={1.9} />
                 </button>
                 <button
                   aria-label="Отменить редактирование"
@@ -388,7 +388,7 @@ export default function PostCard({
                   title="Отменить"
                   type="button"
                 >
-                  ×
+                  <X size={16} strokeWidth={1.9} />
                 </button>
               </div>
             </div>

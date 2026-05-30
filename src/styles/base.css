@@ -1549,3 +1549,143 @@ body {
 .changelog-item {
   box-shadow: inset 0 1px 0 rgba(238, 232, 225, 0.025);
 }
+
+/* Final interaction polish: Discord-like presence colors, stable icon actions, and accessible tab/disclosure states. */
+.post-composer-body,
+.post-edit-shell {
+  min-width: 0;
+}
+
+.post-composer-footer,
+.post-edit-count {
+  min-height: 2.5rem;
+}
+
+.post-composer-actions,
+.post-edit-actions {
+  width: auto;
+  justify-content: flex-end;
+}
+
+.post-composer-actions button,
+.post-edit-actions button {
+  flex: 0 0 auto;
+}
+
+.post-edit-count {
+  padding-right: 8.75rem;
+}
+
+.sqd-icon-action--save {
+  border-color: rgba(35, 165, 90, 0.46);
+  background: rgba(35, 165, 90, 0.14);
+  color: #8de0ad;
+}
+
+.status-select {
+  appearance: none;
+  min-width: 9.25rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 0.9rem) 50%,
+    calc(100% - 0.62rem) 50%;
+  background-size: 0.28rem 0.28rem, 0.28rem 0.28rem;
+  background-repeat: no-repeat;
+  padding-right: 2rem !important;
+}
+
+.profile-status-actions {
+  min-width: min(12rem, 100%);
+}
+
+.profile-status-control {
+  width: 100%;
+}
+
+.avatar-status-dot--online {
+  background: #23a55a;
+  color: #23a55a;
+}
+
+.avatar-status-dot--idle {
+  background: #f0b232;
+  color: #f0b232;
+}
+
+.avatar-status-dot--offline {
+  background: #80848e;
+  color: #80848e;
+}
+
+.avatar-status-dot--dnd {
+  background: #f23f43;
+  color: #f23f43;
+}
+
+.status-pill--online {
+  border-color: rgba(35, 165, 90, 0.48);
+  background: rgba(35, 165, 90, 0.12);
+  color: #8de0ad;
+}
+
+.status-pill--idle {
+  border-color: rgba(240, 178, 50, 0.48);
+  background: rgba(240, 178, 50, 0.12);
+  color: #ffd36d;
+}
+
+.status-pill--dnd {
+  border-color: rgba(242, 63, 67, 0.48);
+  background: rgba(242, 63, 67, 0.12);
+  color: #ff9295;
+}
+
+.status-pill--offline {
+  border-color: rgba(128, 132, 142, 0.38);
+  background: rgba(128, 132, 142, 0.1);
+  color: #a8adb7;
+}
+
+[role='tab'][aria-selected='true'] {
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .post-composer-actions,
+  .post-edit-actions {
+    width: auto;
+    justify-content: flex-end;
+  }
+
+  .post-composer-actions button,
+  .post-edit-actions button {
+    flex: 0 0 auto;
+  }
+
+  .post-composer-footer {
+    padding-right: 6.5rem;
+  }
+
+  .post-edit-count {
+    padding-right: 9rem;
+  }
+
+  .profile-status-actions {
+    justify-items: start;
+    width: 100%;
+  }
+
+  .profile-status-control {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 380px) {
+  .post-composer-footer,
+  .post-edit-count {
+    padding-right: 0;
+    padding-bottom: 3rem;
+  }
+}

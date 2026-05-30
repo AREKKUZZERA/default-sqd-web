@@ -5,6 +5,7 @@ import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 import RolePill from '../../shared/ui/RolePill.jsx';
 import SectionTitle from '../../shared/ui/SectionTitle.jsx';
+import { getPresenceLabel, getPresenceTone, normalizePresenceStatus, USER_STATUS_OPTIONS } from '../../shared/utils/presence.js';
 import PostCard from '../feed/PostCard.jsx';
 
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -195,6 +196,8 @@ export default function ProfilePage({
   const [cropDraft, setCropDraft] = useState(null);
   const [mediaDraft, setMediaDraft] = useState({});
   const [saving, setSaving] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState('');
   const cropDragRef = useRef(null);
 
   const wallPosts = useMemo(() => {
@@ -394,6 +397,7 @@ export default function ProfilePage({
     setCropDraft(null);
     setEditing(false);
     setFormError('');
+    setStatusError('');
     setUploadError('');
   };
 
@@ -423,6 +427,34 @@ export default function ProfilePage({
   const displayedAvatarImage = editing ? draft.avatarImage || profileUser.avatarImage : profileUser.avatarImage;
   const displayedBannerImage = editing ? draft.bannerImage || profileUser.bannerImage : profileUser.bannerImage;
 
+  const visibleStatus = normalizePresenceStatus(editing ? draft.status : profileUser.status);
+  const visiblePresenceTone = getPresenceTone({ ...profileUser, status: visibleStatus });
+  const visiblePresenceLabel = profileUser.isOnline ? getPresenceLabel(visibleStatus) : (profileUser.presenceLabel || 'offline');
+
+  const changeProfileStatus = async (nextStatus) => {
+    if (!isOwnProfile) {
+      return;
+    }
+
+    const normalizedStatus = normalizePresenceStatus(nextStatus);
+
+    if (editing) {
+      setDraft((value) => ({ ...value, status: normalizedStatus }));
+      return;
+    }
+
+    try {
+      setStatusSaving(true);
+      setStatusError('');
+      await onUpdateProfile((profile) => ({ ...profile, status: normalizedStatus }));
+    } catch (error) {
+      setStatusError(error.message);
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+
   return (
     <section className="min-w-0">
       <Panel className="mb-4 overflow-hidden">
@@ -446,45 +478,64 @@ export default function ProfilePage({
               <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
             </div>
 
-            <div className="grid justify-items-end gap-2">
-              <span
-                className={[
-                  'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
-                  profileUser.isOnline ? `status-pill--${profileUser.status || 'online'}` : 'status-pill--offline',
-                ].join(' ')}
-              >
-                {profileUser.isOnline ? (profileUser.status === 'idle' ? 'не активен' : profileUser.status === 'dnd' ? 'не беспокоить' : 'online') : (profileUser.presenceLabel || 'offline')}
-              </span>
-            {isOwnProfile ? (
-              <button
-                aria-label={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
-                className="sqd-button grid size-10 shrink-0 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text sm:size-9"
-                onClick={() => {
-                  if (editing) {
-                    cancelProfileEdit();
-                    return;
-                  }
+            <div className="profile-status-actions grid justify-items-end gap-2">
+              {isOwnProfile ? (
+                <label className="profile-status-control grid justify-items-end gap-1">
+                  <span className="font-mono text-[0.56rem] font-bold uppercase tracking-[0.09em] text-muted">статус</span>
+                  <select
+                    aria-label="Изменить online-статус"
+                    className={["status-select status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase outline-none", `status-pill--${visiblePresenceTone}`].join(' ')}
+                    disabled={statusSaving}
+                    onChange={(event) => changeProfileStatus(event.target.value)}
+                    value={visibleStatus}
+                  >
+                    {USER_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <span
+                  className={[
+                    'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
+                    `status-pill--${visiblePresenceTone}`,
+                  ].join(' ')}
+                >
+                  {visiblePresenceLabel}
+                </span>
+              )}
+              {statusError ? <p className="max-w-[12rem] text-right text-xs leading-5 text-warning">{statusError}</p> : null}
+              {isOwnProfile ? (
+                <button
+                  aria-label={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
+                  className="sqd-button grid size-10 shrink-0 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-text-soft transition hover:border-border-strong hover:bg-surface-3/80 hover:text-text sm:size-9"
+                  onClick={() => {
+                    if (editing) {
+                      cancelProfileEdit();
+                      return;
+                    }
 
-                  setDraft(getDraftFromProfile(profileUser));
-                  setFormError('');
-                  setUploadError('');
-                  setEditing(true);
-                }}
-                title={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
-                type="button"
-              >
-                {editing ? <X size={15} strokeWidth={1.8} /> : <Pencil size={15} strokeWidth={1.8} />}
-              </button>
-            ) : (
-              <button
-                className="sqd-button inline-flex shrink-0 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
-                onClick={() => onMessage?.(profileUser.id)}
-                type="button"
-              >
-                <MessageCircle size={15} strokeWidth={1.8} />
-                написать
-              </button>
-            )}
+                    setDraft(getDraftFromProfile(profileUser));
+                    setFormError('');
+                    setStatusError('');
+                    setUploadError('');
+                    setEditing(true);
+                  }}
+                  title={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
+                  type="button"
+                >
+                  {editing ? <X size={15} strokeWidth={1.8} /> : <Pencil size={15} strokeWidth={1.8} />}
+                </button>
+              ) : (
+                <button
+                  className="sqd-button inline-flex shrink-0 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 py-2 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text transition hover:bg-surface-3/80"
+                  onClick={() => onMessage?.(profileUser.id)}
+                  type="button"
+                >
+                  <MessageCircle size={15} strokeWidth={1.8} />
+                  написать
+                </button>
+              )}
             </div>
           </div>
 
@@ -555,9 +606,9 @@ export default function ProfilePage({
                   onChange={(event) => setDraft((value) => ({ ...value, status: event.target.value }))}
                   value={draft.status || 'online'}
                 >
-                  <option value="online">online</option>
-                  <option value="idle">не активен</option>
-                  <option value="dnd">не беспокоить</option>
+                  {USER_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </label>
 

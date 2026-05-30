@@ -1,12 +1,14 @@
-import { Home, MessageCircle } from 'lucide-react';
+import { FileText, Home, MessageCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 import RolePill from '../../shared/ui/RolePill.jsx';
+import { getPresenceTone, USER_STATUS_OPTIONS } from '../../shared/utils/presence.js';
 
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
+  { icon: FileText, label: 'Общий список', target: 'changelog' },
 ];
 
 function getMiniNameStyle(name = '') {
@@ -40,14 +42,14 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
                 aria-label="Статус онлайн"
                 className={[
                   'status-select status-pill rounded-sqd-xs border px-2.5 py-1.5 text-xs font-bold uppercase outline-none',
-                  currentUser.isOnline ? `status-pill--${currentUser.status || 'online'}` : 'status-pill--offline',
+                  `status-pill--${getPresenceTone(currentUser)}`,
                 ].join(' ')}
                 onChange={(event) => onUpdateProfile?.((profile) => ({ ...profile, status: event.target.value }))}
                 value={currentUser.status || 'online'}
               >
-                <option value="online">online</option>
-                <option value="idle">не активен</option>
-                <option value="dnd">не беспокоить</option>
+                {USER_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </label>
           </div>

@@ -2,7 +2,7 @@ import { useLayoutEffect } from 'react';
 
 const clampHeight = (height, minHeight, maxHeight) => Math.max(minHeight, Math.min(height, maxHeight));
 
-export default function useAutosizeTextarea(ref, value, { maxHeight = 520, minHeight = 0 } = {}) {
+export default function useAutosizeTextarea(ref, value, { maxHeight = 520, minHeight = 0, resizeKey = '' } = {}) {
   useLayoutEffect(() => {
     const textarea = ref.current;
 
@@ -24,5 +24,5 @@ export default function useAutosizeTextarea(ref, value, { maxHeight = 520, minHe
 
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = fullHeight > resolvedMaxHeight ? 'auto' : 'hidden';
-  }, [maxHeight, minHeight, ref, value]);
+  }, [maxHeight, minHeight, ref, resizeKey, value]);
 }
