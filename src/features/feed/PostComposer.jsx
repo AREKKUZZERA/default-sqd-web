@@ -85,7 +85,7 @@ export default function PostComposer({ currentUser, onPost }) {
     <form className="post-composer rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
       <div className="post-composer-layout flex gap-3">
         <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} />
-        <div className="min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <textarea
             className="autosize-textarea min-h-24 w-full resize-y rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
             maxLength={MAX_POST_LENGTH}
@@ -116,30 +116,32 @@ export default function PostComposer({ currentUser, onPost }) {
             </div>
           ) : null}
 
-          <div className="post-composer-footer mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="post-composer-footer mt-3 flex flex-wrap items-end justify-between gap-3 pr-24">
             <p className="post-composer-hint text-xs text-muted">Enter — новая строка, Ctrl/⌘+Enter — публикация. Markdown, списки и хештеги поддерживаются.</p>
-            <div className="post-composer-actions flex items-center gap-2 sm:gap-3">
-              <span className={['font-mono text-[0.65rem]', remaining < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
-                {remaining}
-              </span>
-              <button
-                className="sqd-button post-composer-preview-button inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!draft.trim()}
-                onClick={() => setPreviewOpen((isOpen) => !isOpen)}
-                type="button"
-              >
-                <Eye size={15} strokeWidth={1.8} />
-                {previewOpen ? 'скрыть' : 'предпросмотр'}
-              </button>
-              <button
-                className="sqd-button inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
-                disabled={!canSubmit}
-                type="submit"
-              >
-                <Send size={15} strokeWidth={1.8} />
-                {sending ? 'публикуем' : 'опубликовать'}
-              </button>
-            </div>
+            <span className={['font-mono text-[0.65rem]', remaining < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
+              {remaining}
+            </span>
+          </div>
+          <div className="post-composer-actions absolute bottom-0 right-0 flex items-center gap-2" aria-label="Действия поста">
+            <button
+              aria-label={previewOpen ? 'Скрыть предпросмотр' : 'Показать предпросмотр'}
+              className="sqd-icon-action sqd-icon-action--preview grid size-10 place-items-center rounded-sqd-xs border transition disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!draft.trim()}
+              onClick={() => setPreviewOpen((isOpen) => !isOpen)}
+              title={previewOpen ? 'Скрыть предпросмотр' : 'Предпросмотр'}
+              type="button"
+            >
+              <Eye size={16} strokeWidth={1.9} />
+            </button>
+            <button
+              aria-label={sending ? 'Публикуем пост' : 'Опубликовать пост'}
+              className="sqd-icon-action sqd-icon-action--publish grid size-10 place-items-center rounded-sqd-xs border transition disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canSubmit}
+              title={sending ? 'Публикуем' : 'Опубликовать'}
+              type="submit"
+            >
+              <Send size={16} strokeWidth={1.9} />
+            </button>
           </div>
           {error ? <p className="mt-3 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{error}</p> : null}
         </div>

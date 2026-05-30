@@ -162,6 +162,7 @@ function getDraftFromProfile(profile) {
     bannerImagePath: profile?.bannerImagePath || profile?.bannerImage || '',
     bio: profile?.bio || '',
     name: profile?.name || '',
+    status: profile?.status || 'online',
     userId: profile?.userId || '',
   };
 }
@@ -264,6 +265,7 @@ export default function ProfilePage({
         bannerImagePath,
         name: normalizedName,
         role: profile.role,
+        status: draft.status || profile.status || 'online',
         userId: normalizedUserId,
       }));
       setMediaDraft({});
@@ -430,7 +432,7 @@ export default function ProfilePage({
         />
         <div className="-mt-10 p-5">
           <div className="flex flex-wrap items-end gap-4">
-            <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" />
+            <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" status={editing ? draft.status : profileUser.status} />
           </div>
 
           <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
@@ -439,20 +441,20 @@ export default function ProfilePage({
               <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
                 <RolePill role={profileUser.role} />
-                <span
-                  className={[
-                    'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
-                    profileUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
-                  ].join(' ')}
-                >
-                  {profileUser.status || 'offline'}
-                </span>
-
                 <PermissionBadges permissions={profileUser.permissions} />
               </div>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-text-soft">{profileUser.bio || 'Профиль пока без описания.'}</p>
             </div>
 
+            <div className="grid justify-items-end gap-2">
+              <span
+                className={[
+                  'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
+                  profileUser.isOnline ? `status-pill--${profileUser.status || 'online'}` : 'status-pill--offline',
+                ].join(' ')}
+              >
+                {profileUser.isOnline ? (profileUser.status === 'idle' ? 'не активен' : profileUser.status === 'dnd' ? 'не беспокоить' : 'online') : (profileUser.presenceLabel || 'offline')}
+              </span>
             {isOwnProfile ? (
               <button
                 aria-label={editing ? 'Отменить редактирование профиля' : 'Редактировать профиль'}
@@ -483,6 +485,7 @@ export default function ProfilePage({
                 написать
               </button>
             )}
+            </div>
           </div>
 
           {editing ? (
@@ -543,6 +546,20 @@ export default function ProfilePage({
                   />
                 </label>
               </div>
+
+              <label className="grid gap-1 sm:max-w-xs">
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">Статус</span>
+                <select
+                  className="rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-border-strong"
+                  name="profile-status"
+                  onChange={(event) => setDraft((value) => ({ ...value, status: event.target.value }))}
+                  value={draft.status || 'online'}
+                >
+                  <option value="online">online</option>
+                  <option value="idle">не активен</option>
+                  <option value="dnd">не беспокоить</option>
+                </select>
+              </label>
 
               <label className="grid gap-1">
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-muted">О себе</span>

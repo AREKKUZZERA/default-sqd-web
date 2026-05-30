@@ -341,9 +341,9 @@ export default function PostCard({
           </div>
 
           {editingPost ? (
-            <div className="mt-2 grid gap-2">
+            <div className="relative mt-2 grid gap-2 pb-12">
               <textarea
-                className="autosize-textarea min-h-28 resize-y rounded-sqd-xs border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none focus:border-border-strong"
+                className="autosize-textarea min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition focus:border-border-strong"
                 maxLength={MAX_POST_LENGTH}
                 name="post-edit-body"
                 onChange={(event) => setPostDraft(event.target.value)}
@@ -351,7 +351,7 @@ export default function PostCard({
                 ref={postEditRef}
                 value={postDraft}
               />
-              <p className={["justify-self-end font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
+              <p className={["justify-self-start font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {MAX_POST_LENGTH - postDraft.length}
               </p>
               {postPreviewOpen && postDraft.trim() ? (
@@ -360,29 +360,35 @@ export default function PostCard({
                   <MarkdownBody className="text-sm leading-6 text-text-soft" value={postDraft.trim()} />
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-2">
+              <div className="absolute bottom-0 right-0 flex items-center gap-2" aria-label="Действия редактирования поста">
                 <button
-                  className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text disabled:opacity-50"
+                  aria-label={postPreviewOpen ? 'Скрыть предпросмотр' : 'Показать предпросмотр'}
+                  className="sqd-icon-action sqd-icon-action--preview grid size-10 place-items-center rounded-sqd-xs border transition disabled:opacity-50"
                   disabled={!postDraft.trim()}
                   onClick={() => setPostPreviewOpen((isOpen) => !isOpen)}
+                  title={postPreviewOpen ? 'Скрыть предпросмотр' : 'Предпросмотр'}
                   type="button"
                 >
-                  <span className="inline-flex items-center gap-1.5"><Eye size={13} strokeWidth={1.8} />{postPreviewOpen ? 'скрыть' : 'предпросмотр'}</span>
+                  <Eye size={16} strokeWidth={1.9} />
                 </button>
                 <button
-                  className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
+                  aria-label={postBusy ? 'Сохраняем пост' : 'Сохранить пост'}
+                  className="sqd-icon-action sqd-icon-action--publish grid size-10 place-items-center rounded-sqd-xs border transition disabled:opacity-50"
                   disabled={!postDraft.trim() || postBusy}
                   onClick={handlePostUpdate}
+                  title={postBusy ? 'Сохраняем' : 'Сохранить'}
                   type="button"
                 >
-                  {postBusy ? 'сохраняем...' : 'сохранить'}
+                  <Send size={16} strokeWidth={1.9} />
                 </button>
                 <button
-                  className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
+                  aria-label="Отменить редактирование"
+                  className="sqd-icon-action sqd-icon-action--muted grid size-10 place-items-center rounded-sqd-xs border transition"
                   onClick={cancelEditPost}
+                  title="Отменить"
                   type="button"
                 >
-                  отменить
+                  ×
                 </button>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { Bell, Home, LogOut, MessageCircle, Search, Settings, ShieldAlert, UserCircle } from 'lucide-react';
+import { Bell, FileText, Home, LogOut, MessageCircle, Search, Settings, ShieldAlert, UserCircle } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import ReportDialog from '../features/moderation/ReportDialog.jsx';
@@ -35,6 +35,7 @@ import Panel from '../shared/ui/Panel.jsx';
 const mobileNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
+  { icon: FileText, label: 'Общее', target: 'changelog' },
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
@@ -104,6 +105,7 @@ const getInitialView = () => {
   if (getProfileKeyFromPath()) return 'profile';
   if (getMessageConversationIdFromPath() !== null) return 'messages';
   if (getAppPath().match(/^\/moderation\/?$/)) return 'moderation';
+  if (getAppPath().match(/^\/changelog\/?$/)) return 'changelog';
   return 'feed';
 };
 
@@ -149,6 +151,64 @@ const shouldReloadForProfileChange = (payload) => {
 
   return PROFILE_RELOAD_FIELDS.some((field) => oldProfile[field] !== nextProfile[field]);
 };
+
+
+function ChangelogPanel() {
+  const days = [
+    {
+      date: '2026-05-30',
+      accent: 'today',
+      sections: [
+        { title: 'Added', items: ['Реальный online/presence status для пользователей и бейдж онлайн-статуса в профиле.', 'Расширены функции модерации контента и permissions.'] },
+        { title: 'Changed', items: ['Улучшен UX редактора, markdown rendering и layout профиля.', 'Обновлён UI report dialog.', 'Обновлён socialApi, удалены лишние docs.'] },
+        { title: 'Fixed', items: ['Восстановлены storage policies для аватаров.', 'Исправлена подпись/доступ к auth profile media.', 'Исправлена перезагрузка banner после обновления профиля.', 'Создание постов и комментариев переведено на Supabase RPC.', 'Доработан online status badge на странице профиля.'] },
+      ],
+    },
+    {
+      date: '2026-05-29',
+      accent: 'release',
+      sections: [
+        { title: 'Added', items: ['Добавлена Supabase backend integration.', 'Добавлена закрытая Supabase authentication.', 'Mock social data заменены на Supabase release flow.', 'Добавлены editing и media cleanup features.', 'Добавлена отправка поста с клавиатуры в composer.', 'Добавлены moderation, anti-spam и mobile hardening.', 'Добавлены content moderation features и UI.', 'Добавлен starry site background.', 'Добавлен confirm dialog.'] },
+        { title: 'Changed', items: ['Обновлены UI components и стили для улучшения UX.', 'Обновлён background grid design.', 'Обновлены зависимости.', 'PostComposer обновлён инструкциями по hashtags.', 'Роль профиля вынесена в отдельную часть профиля.'] },
+        { title: 'Fixed', items: ['Lockfile переведён на public npm registry.', 'Исправлено создание direct conversations через Supabase RPC.', 'Исправлен request loop в direct messages.', 'Отполированы realtime social features.', 'Исправлены 404 ошибки и routing для директорий.', 'Исправлен GitHub Pages routing для profile pages.', 'Исправлены messages routing и realtime updates.', 'Удалена неподдерживаемая CSP meta directive.', 'Messages переведены на hash URLs.', 'Добавлены form field names.', 'Улучшены scroll и composer focus в messages.', 'Добавлено сохранение draft поста.', 'Добавлено сохранение unsent message drafts.'] },
+        { title: 'Removed', items: ['Удалены release docs.'] },
+      ],
+    },
+    { date: 'Initial / Setup', accent: 'setup', sections: [{ title: 'Added', items: ['Добавлен .gitignore.'] }, { title: 'Changed', items: ['Обновлён .gitignore.'] }] },
+  ];
+
+  return (
+    <section className="min-w-0">
+      <div className="mb-5">
+        <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Общий список</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-soft">История первых постов и обновлений по дням. Разделы собраны в аккуратные карточки с бейджами статуса.</p>
+      </div>
+      <div className="grid gap-4">
+        {days.map((day) => (
+          <Panel className={["changelog-card p-4", `changelog-card--${day.accent}`].join(' ')} key={day.date}>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+              <div>
+                <p className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted">первые посты по дням</p>
+                <h2 className="mt-1 font-ui text-xl font-bold text-text">{day.date}</h2>
+              </div>
+              <span className="changelog-date-badge rounded-sqd-xs border px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em]">{day.sections.length} раздела</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {day.sections.map((section) => (
+                <div className="rounded-sqd-sm border border-border bg-surface-2/60 p-3" key={section.title}>
+                  <span className={["changelog-section-badge rounded-sqd-xs border px-2 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.08em]", `changelog-section-badge--${section.title.toLowerCase()}`].join(' ')}>{section.title}</span>
+                  <ul className="mt-3 grid gap-2 text-sm leading-6 text-text-soft">
+                    {section.items.map((item) => <li className="changelog-item rounded-sqd-xs border border-border bg-bg-soft/55 px-3 py-2" key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function AppShell({ authenticatedUser, authError = '', onSignOut = () => {} }) {
   const notificationsRef = useRef(null);
@@ -640,6 +700,14 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       return;
     }
 
+    if (target === 'changelog') {
+      setPreferredConversationId(null);
+      setSelectedPostId(null);
+      setActiveView('changelog');
+      updateBrowserPath('/changelog');
+      return;
+    }
+
     showFeed();
   };
 
@@ -960,6 +1028,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
             onNavigate={navigateView}
             onOpenProfile={showOwnProfile}
             onSelectTopic={selectTopic}
+            onUpdateProfile={updateProfile}
             trends={hashtagTrends}
           />
         </aside>
@@ -984,6 +1053,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
               onOpenProfile={showProfile}
               people={peopleWithPresence}
             />
+          ) : activeView === 'changelog' ? (
+            <ChangelogPanel />
           ) : activeView === 'profile' ? (
             <ProfilePage
               currentUser={displayedUser}
@@ -1048,7 +1119,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
       <nav className={[
         'fixed inset-x-3 bottom-3 z-50 grid gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
-        canModerate ? 'grid-cols-4' : 'grid-cols-3',
+        canModerate ? 'grid-cols-5' : 'grid-cols-4',
         isMessageConversationOpen ? 'hidden' : '',
       ].join(' ')} aria-label="Мобильная навигация">
         {displayedMobileNavigation.map((item) => {

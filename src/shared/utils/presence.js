@@ -1,4 +1,4 @@
-const ONLINE_LABEL = 'online';
+const DEFAULT_STATUS = 'online';
 
 export function formatLastSeen(lastSeenAt) {
   if (!lastSeenAt) {
@@ -35,6 +35,7 @@ export function applyPresenceStatus(profile, onlineUserIds) {
   return {
     ...profile,
     isOnline,
-    status: isOnline ? ONLINE_LABEL : formatLastSeen(profile.lastSeenAt),
+    status: profile.status || DEFAULT_STATUS,
+    presenceLabel: isOnline ? (profile.status || DEFAULT_STATUS) : formatLastSeen(profile.lastSeenAt),
   };
 }

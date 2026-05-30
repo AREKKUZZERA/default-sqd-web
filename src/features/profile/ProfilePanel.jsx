@@ -1,4 +1,4 @@
-import { Home, MessageCircle, UserCircle } from 'lucide-react';
+import { Home, MessageCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
@@ -7,7 +7,6 @@ import RolePill from '../../shared/ui/RolePill.jsx';
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
-  { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
 function getMiniNameStyle(name = '') {
@@ -17,7 +16,7 @@ function getMiniNameStyle(name = '') {
   return { fontSize: `${size.toFixed(2)}rem` };
 }
 
-export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, trends }) {
+export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, onUpdateProfile, trends }) {
   const visibleTrends = trends.slice(0, 5);
 
   return (
@@ -33,16 +32,24 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
         <div className="-mt-8 p-4">
           <div className="flex items-end justify-between gap-3">
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
-              <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" />
+              <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" status={currentUser.status} />
             </button>
-            <span
-              className={[
-                'status-pill rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',
-                currentUser.isOnline ? 'status-pill--online' : 'status-pill--offline',
-              ].join(' ')}
-            >
-              {currentUser.status || 'online'}
-            </span>
+            <label className="grid gap-1 text-right">
+              <span className="font-mono text-[0.52rem] uppercase tracking-[0.08em] text-muted">статус</span>
+              <select
+                aria-label="Статус онлайн"
+                className={[
+                  'status-select status-pill rounded-sqd-xs border px-2.5 py-1.5 text-xs font-bold uppercase outline-none',
+                  currentUser.isOnline ? `status-pill--${currentUser.status || 'online'}` : 'status-pill--offline',
+                ].join(' ')}
+                onChange={(event) => onUpdateProfile?.((profile) => ({ ...profile, status: event.target.value }))}
+                value={currentUser.status || 'online'}
+              >
+                <option value="online">online</option>
+                <option value="idle">не активен</option>
+                <option value="dnd">не беспокоить</option>
+              </select>
+            </label>
           </div>
 
           <button className="mt-4 block w-full text-left" onClick={onOpenProfile} type="button">

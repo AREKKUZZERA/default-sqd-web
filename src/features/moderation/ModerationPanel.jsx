@@ -94,39 +94,54 @@ function ReportToastStack({ toasts }) {
 }
 
 function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, report }) {
+  const [expanded, setExpanded] = useState(false);
   const contentLabel = reportTargetLabel(report);
   const contentId = reportContentId(report);
   const hasContentText = Boolean(report.contentText?.trim());
 
   return (
     <article className="rounded-sqd-sm border border-border bg-bg-soft/75 p-3.5 transition hover:border-border-strong hover:bg-surface-2/70">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-ui text-base font-bold text-text">Репорт #{shortId(report.id)}</p>
-            <StatusPill status={report.status} />
+      <button
+        aria-expanded={expanded}
+        className="block w-full text-left"
+        onClick={() => setExpanded((value) => !value)}
+        type="button"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-ui text-base font-bold text-text">Репорт #{shortId(report.id)}</p>
+              <StatusPill status={report.status} />
+            </div>
+            <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">
+              создан {formatDate(report.createdAt)} / объект {contentLabel.toLowerCase()} #{contentId}
+            </p>
           </div>
-          <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-[0.08em] text-muted">
-            создан {formatDate(report.createdAt)} / объект {contentLabel.toLowerCase()} #{contentId}
-          </p>
+          <span className="rounded-sqd-xs border border-border bg-surface-2/70 px-2.5 py-1.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.08em] text-text-soft">
+            {expanded ? 'свернуть' : 'раскрыть'}
+          </span>
+        </div>
+      </button>
+
+      {expanded ? (
+      <div className="mt-3 border-t border-border pt-3">
+        <div className="mb-3 flex justify-end">
+          <label className="grid min-w-[11rem] gap-1 text-xs font-bold uppercase tracking-[0.08em] text-muted">
+            Статус
+            <select
+              className="rounded-sqd-xs border border-border bg-surface-2/80 px-3 py-2 font-ui text-sm normal-case tracking-normal text-text outline-none transition focus:border-border-strong disabled:opacity-55"
+              disabled={busy}
+              onChange={(event) => onStatusChange(report, event.target.value)}
+              value={report.status}
+            >
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <label className="grid min-w-[11rem] gap-1 text-xs font-bold uppercase tracking-[0.08em] text-muted">
-          Статус
-          <select
-            className="rounded-sqd-xs border border-border bg-surface-2/80 px-3 py-2 font-ui text-sm normal-case tracking-normal text-text outline-none transition focus:border-border-strong disabled:opacity-55"
-            disabled={busy}
-            onChange={(event) => onStatusChange(report, event.target.value)}
-            value={report.status}
-          >
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status.value} value={status.value}>{status.label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-sqd-xs border border-border bg-surface-2/55 p-3">
           <p className="mb-2 inline-flex items-center gap-2 font-mono text-[0.6rem] font-bold uppercase tracking-[0.08em] text-muted">
             <UserRound size={13} strokeWidth={1.8} /> Кто отправил
@@ -183,6 +198,8 @@ function ReportCard({ busy, onOpenProfile, onSelectTarget, onStatusChange, repor
           <p className="whitespace-pre-wrap text-sm leading-6 text-text">{report.reason || 'Причина не указана.'}</p>
         </div>
       </div>
+      </div>
+      ) : null}
     </article>
   );
 }
@@ -224,6 +241,8 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [toasts, setToasts] = useState([]);
+  const [activeReportView, setActiveReportView] = useState('active');
+  const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
 
   const targets = useMemo(() => people.filter((person) => person.id !== currentUser?.id), [currentUser?.id, people]);
 
@@ -250,6 +269,7 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
 
     const timerId = window.setTimeout(() => {
       setTargetUserId(initialTargetUserId);
+      setSentenceModalOpen(true);
       onInitialTargetHandled?.();
     }, 0);
 
@@ -257,6 +277,7 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
   }, [initialTargetUserId, onInitialTargetHandled]);
 
   const selectedTargetUserId = targetUserId || targets[0]?.id || '';
+  const displayedReports = activeReportView === 'resolved' ? resolvedReports : activeReports;
 
   const pushReportToast = useCallback((report, status) => {
     const statusLabel = getStatusOption(status).label;
@@ -341,7 +362,7 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
       {error ? <p className="mb-4 rounded-sqd-xs border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{error}</p> : null}
       {notice ? <p className="mb-4 rounded-sqd-xs border border-positive/35 bg-positive-soft/20 px-3 py-2 text-sm text-positive">{notice}</p> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-4">
         <Panel className="p-3 sm:p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -353,30 +374,46 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
             </button>
           </div>
 
-          <div className="grid gap-5">
-            <ReportsSection
-              busy={busy}
-              emptyText="Открытых жалоб пока нет."
-              onOpenProfile={onOpenProfile}
-              onSelectTarget={setTargetUserId}
-              onStatusChange={changeReportStatus}
-              reports={activeReports}
-              title="Активные репорты"
-            />
-            <ReportsSection
-              busy={busy}
-              emptyText="Решенных проблем пока нет."
-              onOpenProfile={onOpenProfile}
-              onSelectTarget={setTargetUserId}
-              onStatusChange={changeReportStatus}
-              reports={resolvedReports}
-              title="Решенные проблемы"
-            />
+          <div className="mb-4 grid grid-cols-2 gap-2 rounded-sqd-sm border border-border bg-bg-soft/55 p-1">
+            <button
+              className={["rounded-sqd-xs px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] transition", activeReportView === 'active' ? 'bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]' : 'text-text-soft hover:bg-surface-2/70'].join(' ')}
+              onClick={() => setActiveReportView('active')}
+              type="button"
+            >
+              Активные · {activeReports.length}
+            </button>
+            <button
+              className={["rounded-sqd-xs px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] transition", activeReportView === 'resolved' ? 'bg-accent-soft text-text shadow-[inset_0_-2px_0_var(--color-positive)]' : 'text-text-soft hover:bg-surface-2/70'].join(' ')}
+              onClick={() => setActiveReportView('resolved')}
+              type="button"
+            >
+              Решено · {resolvedReports.length}
+            </button>
           </div>
+
+          <ReportsSection
+            busy={busy}
+            emptyText={activeReportView === 'active' ? 'Открытых жалоб пока нет.' : 'Решенных проблем пока нет.'}
+            onOpenProfile={onOpenProfile}
+            onSelectTarget={(id) => { setTargetUserId(id); setSentenceModalOpen(true); }}
+            onStatusChange={changeReportStatus}
+            reports={displayedReports}
+            title={activeReportView === 'active' ? 'Активные репорты' : 'Решенные проблемы'}
+          />
         </Panel>
 
-        <Panel className="p-3 sm:p-4">
-          <h2 className="font-ui text-lg font-bold text-text">Действие модератора</h2>
+        {sentenceModalOpen ? (
+          <div className="fixed inset-0 z-[110] grid place-items-center bg-black/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+            <Panel className="w-full max-w-md p-3 sm:p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-ui text-lg font-bold text-text">Вынести приговор</h2>
+                  <p className="mt-1 text-sm text-muted">Выберите действие, срок и причину для выбранного нарушителя.</p>
+                </div>
+                <button className="rounded-sqd-xs border border-border bg-surface-2/70 px-2 py-1 text-text-soft" onClick={() => setSentenceModalOpen(false)} type="button">×</button>
+              </div>
+
+          <h2 className="sr-only">Действие модератора</h2>
           <p className="mt-1 text-sm text-muted">Сначала выберите нарушителя в карточке жалобы или вручную ниже.</p>
           <form className="mt-3 grid gap-3" onSubmit={applyAction}>
             <label className="grid gap-1 text-sm text-text-soft">
@@ -413,7 +450,9 @@ export default function ModerationPanel({ currentUser, initialTargetUserId = '',
               {busy ? 'применяем...' : 'применить'}
             </button>
           </form>
-        </Panel>
+            </Panel>
+          </div>
+        ) : null}
       </div>
     </section>
   );

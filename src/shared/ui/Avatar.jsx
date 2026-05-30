@@ -1,4 +1,4 @@
-export default function Avatar({ label, image, size = 'md', active = false }) {
+export default function Avatar({ label, image, size = 'md', active = false, status = 'online' }) {
   const sizes = {
     sm: 'h-9 w-9 text-[0.65rem]',
     md: 'h-11 w-11 text-xs',
@@ -14,9 +14,7 @@ export default function Avatar({ label, image, size = 'md', active = false }) {
       aria-hidden="true"
     >
       {image ? <img alt="" className="h-full w-full rounded-sqd-sm object-cover" src={image} /> : label}
-      {active ? (
-        <span className="avatar-status-dot absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border border-bg bg-positive" />
-      ) : null}
+      <span className={["avatar-status-dot absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border border-bg", active ? `avatar-status-dot--${status || 'online'}` : 'avatar-status-dot--offline'].join(' ')} />
     </span>
   );
 }
