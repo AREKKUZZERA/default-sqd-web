@@ -1,4 +1,4 @@
-import { Bell, FileText, Home, LogOut, MessageCircle, Search, Settings, ShieldAlert, UserCircle } from 'lucide-react';
+import { Bell, GitCommitHorizontal, Home, LogOut, MessageCircle, ScrollText, Search, Settings, ShieldAlert, UserCircle } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Feed from '../features/feed/Feed.jsx';
 import ReportDialog from '../features/moderation/ReportDialog.jsx';
@@ -35,7 +35,6 @@ import Panel from '../shared/ui/Panel.jsx';
 const mobileNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
-  { icon: FileText, label: 'Общий список', target: 'changelog' },
   { icon: UserCircle, label: 'Профиль', target: 'profile' },
 ];
 
@@ -152,67 +151,288 @@ const shouldReloadForProfileChange = (payload) => {
   return PROFILE_RELOAD_FIELDS.some((field) => oldProfile[field] !== nextProfile[field]);
 };
 
-const formatSectionCount = (count) => {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-
-  if (mod10 === 1 && mod100 !== 11) return `${count} раздел`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} раздела`;
-  return `${count} разделов`;
-};
-
+const changelogEntries = [
+  {
+    date: '2026-05-30',
+    tag: 'release-2026-05-30',
+    title: 'UI polish, moderation workflow and profile presence',
+    description: 'Собраны изменения по composer, профилю, модерации, навигации и инфраструктурным исправлениям Supabase.',
+    sections: [
+      {
+        title: 'Added',
+        groups: [
+          {
+            title: 'Composer',
+            items: [
+              'Кнопки Preview и Publish переведены в формат icon-only.',
+              'Кнопки перенесены в правый нижний угол блока создания поста.',
+              'Для повышения доступности добавлены aria-label и title.',
+              'На мобильных устройствах исправлено поведение кнопок: они больше не растягиваются на всю ширину и не нарушают компоновку интерфейса.',
+            ],
+          },
+          {
+            title: 'Редактирование постов',
+            items: [
+              'Поле редактирования автоматически увеличивается по высоте аналогично composer.',
+              'Добавлены компактные icon-only действия Save и Cancel в правом нижнем углу редактора.',
+              'Сохранена возможность ручного вертикального изменения размера поля.',
+            ],
+          },
+          {
+            title: 'Профиль пользователя',
+            items: [
+              'Добавлен реальный online/presence status для пользователей.',
+              'Статус пользователя вынесен в правую часть шапки профиля над кнопкой редактирования.',
+              'Для собственного профиля добавлена возможность изменять статус непосредственно из profile header.',
+              'Индикатор статуса перенесён в правый нижний угол аватарки.',
+            ],
+          },
+          {
+            title: 'Навигация',
+            items: [
+              'Для changelog добавлена отдельная качественная иконка листа изменений вместо универсальной заглушки.',
+            ],
+          },
+          {
+            title: 'Модерация',
+            items: [
+              'Разделы Активные и Решено реализованы в виде полноценных вкладок.',
+              'Добавлено модальное окно вынесения решения по жалобе.',
+              'Репорты по умолчанию отображаются в компактном свёрнутом состоянии.',
+              'При раскрытии отображается полная информация по жалобе.',
+              'Расширены функции модерации контента и permissions.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Changed',
+        groups: [
+          {
+            title: 'Статусы пользователей',
+            items: [
+              'Цветовая схема приведена к привычной логике мессенджеров: online — зелёный, idle — жёлтый, do not disturb — красный, offline — серый.',
+              'Для статуса Do Not Disturb добавлен характерный индикатор с горизонтальной полосой.',
+            ],
+          },
+          {
+            title: 'Акценты интерфейса',
+            items: [
+              'Обновлены акцентные цвета action-кнопок, статусов, вкладок и действий composer/editor.',
+              'Действия Publish и Save получили зелёный success-акцент.',
+              'Второстепенные действия Preview, Cancel и другие стали визуально спокойнее для лучшего выделения основного действия.',
+            ],
+          },
+          {
+            title: 'Навигация',
+            items: [
+              'Старый пункт общего списка переименован в Обновления и больше не описывает посты.',
+              'Кнопка перехода в Обновления перенесена из левого desktop sidebar в верхнюю панель.',
+              'Кнопка Профиль удалена из desktop sidebar, но сохранена на мобильных устройствах.',
+            ],
+          },
+          {
+            title: 'Платформа',
+            items: [
+              'Улучшен UX редактора, markdown rendering и layout профиля.',
+              'Обновлён UI report dialog.',
+              'Обновлён socialApi и удалены лишние docs.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Fixed',
+        groups: [
+          {
+            title: 'Доступность',
+            items: [
+              'Для icon-only кнопок добавлены корректные доступные имена через aria-label.',
+              'Для tabs реализованы role=tablist, role=tab, role=tabpanel, aria-selected и aria-controls.',
+              'Для disclosure-паттернов добавлен aria-expanded.',
+              'Для модального окна реализованы role=dialog, aria-modal, закрытие по Escape и корректное восстановление прокрутки страницы после закрытия.',
+            ],
+          },
+          {
+            title: 'Профили пользователей',
+            items: [
+              'Добавлена нормализация статусов для предотвращения ошибок интерфейса при некорректных значениях.',
+              'Исправлена подпись и доступ к auth profile media.',
+              'Исправлена перезагрузка banner после обновления профиля.',
+              'Доработан online status badge на странице профиля.',
+            ],
+          },
+          {
+            title: 'Backend и storage',
+            items: [
+              'Восстановлены storage policies для аватаров.',
+              'Создание постов и комментариев переведено на Supabase RPC.',
+            ],
+          },
+          {
+            title: 'Changelog',
+            items: [
+              'Исправлена синхронизация маршрута /changelog.',
+              'Раздел корректно открывается после прямого перехода и после перезагрузки страницы.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'UI Improvements',
+        groups: [
+          {
+            title: 'Changelog',
+            items: [
+              'История изменений переоформлена в стиле GitHub release notes: даты, версии, группы изменений и markdown-подобные списки.',
+              'Убраны лишние декоративные бейджи и карточки “первых постов по дням”.',
+              'Улучшены читаемость, отступы и визуальная иерархия истории изменений.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-05-29',
+    tag: 'release-2026-05-29',
+    title: 'Supabase integration, realtime social features and mobile hardening',
+    description: 'Базовый релиз социальной части: авторизация, realtime-данные, сообщения, модерация, антиспам и улучшения мобильного UX.',
+    sections: [
+      {
+        title: 'Added',
+        groups: [
+          {
+            title: 'Core',
+            items: [
+              'Добавлена Supabase backend integration.',
+              'Добавлена закрытая Supabase authentication.',
+              'Mock social data заменены на Supabase release flow.',
+              'Добавлены editing и media cleanup features.',
+              'Добавлена отправка поста с клавиатуры в composer.',
+              'Добавлены moderation, anti-spam и mobile hardening.',
+              'Добавлены content moderation features и UI.',
+              'Добавлен starry site background.',
+              'Добавлен confirm dialog.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Changed',
+        groups: [
+          {
+            title: 'Interface',
+            items: [
+              'Обновлены UI components и стили для улучшения UX.',
+              'Обновлён background grid design.',
+              'Обновлены зависимости.',
+              'PostComposer обновлён инструкциями по hashtags.',
+              'Роль профиля вынесена в отдельную часть профиля.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Fixed',
+        groups: [
+          {
+            title: 'Routing and realtime',
+            items: [
+              'Lockfile переведён на public npm registry.',
+              'Исправлено создание direct conversations через Supabase RPC.',
+              'Исправлен request loop в direct messages.',
+              'Отполированы realtime social features.',
+              'Исправлены 404 ошибки и routing для директорий.',
+              'Исправлен GitHub Pages routing для profile pages.',
+              'Исправлены messages routing и realtime updates.',
+              'Удалена неподдерживаемая CSP meta directive.',
+              'Messages переведены на hash URLs.',
+              'Добавлены form field names.',
+              'Улучшены scroll и composer focus в messages.',
+              'Добавлено сохранение draft поста.',
+              'Добавлено сохранение unsent message drafts.',
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Removed',
+        groups: [
+          { title: 'Docs', items: ['Удалены release docs.'] },
+        ],
+      },
+    ],
+  },
+  {
+    date: 'Initial / Setup',
+    tag: 'initial-setup',
+    title: 'Initial project setup',
+    description: 'Первичная настройка репозитория и базовых служебных файлов.',
+    sections: [
+      {
+        title: 'Added',
+        groups: [{ title: 'Repository', items: ['Добавлен .gitignore.'] }],
+      },
+      {
+        title: 'Changed',
+        groups: [{ title: 'Repository', items: ['Обновлён .gitignore.'] }],
+      },
+    ],
+  },
+];
 
 function ChangelogPanel() {
-  const days = [
-    {
-      date: '2026-05-30',
-      accent: 'today',
-      sections: [
-        { title: 'Added', items: ['Реальный online/presence status для пользователей и бейдж онлайн-статуса в профиле.', 'Расширены функции модерации контента и permissions.'] },
-        { title: 'Changed', items: ['Улучшен UX редактора, markdown rendering и layout профиля.', 'Обновлён UI report dialog.', 'Обновлён socialApi, удалены лишние docs.'] },
-        { title: 'Fixed', items: ['Восстановлены storage policies для аватаров.', 'Исправлена подпись/доступ к auth profile media.', 'Исправлена перезагрузка banner после обновления профиля.', 'Создание постов и комментариев переведено на Supabase RPC.', 'Доработан online status badge на странице профиля.'] },
-      ],
-    },
-    {
-      date: '2026-05-29',
-      accent: 'release',
-      sections: [
-        { title: 'Added', items: ['Добавлена Supabase backend integration.', 'Добавлена закрытая Supabase authentication.', 'Mock social data заменены на Supabase release flow.', 'Добавлены editing и media cleanup features.', 'Добавлена отправка поста с клавиатуры в composer.', 'Добавлены moderation, anti-spam и mobile hardening.', 'Добавлены content moderation features и UI.', 'Добавлен starry site background.', 'Добавлен confirm dialog.'] },
-        { title: 'Changed', items: ['Обновлены UI components и стили для улучшения UX.', 'Обновлён background grid design.', 'Обновлены зависимости.', 'PostComposer обновлён инструкциями по hashtags.', 'Роль профиля вынесена в отдельную часть профиля.'] },
-        { title: 'Fixed', items: ['Lockfile переведён на public npm registry.', 'Исправлено создание direct conversations через Supabase RPC.', 'Исправлен request loop в direct messages.', 'Отполированы realtime social features.', 'Исправлены 404 ошибки и routing для директорий.', 'Исправлен GitHub Pages routing для profile pages.', 'Исправлены messages routing и realtime updates.', 'Удалена неподдерживаемая CSP meta directive.', 'Messages переведены на hash URLs.', 'Добавлены form field names.', 'Улучшены scroll и composer focus в messages.', 'Добавлено сохранение draft поста.', 'Добавлено сохранение unsent message drafts.'] },
-        { title: 'Removed', items: ['Удалены release docs.'] },
-      ],
-    },
-    { date: 'Initial / Setup', accent: 'setup', sections: [{ title: 'Added', items: ['Добавлен .gitignore.'] }, { title: 'Changed', items: ['Обновлён .gitignore.'] }] },
-  ];
-
   return (
-    <section className="min-w-0">
-      <div className="mb-5">
-        <h1 className="poster-title font-display text-4xl leading-none text-text sm:text-5xl">Общий список</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-text-soft">История первых постов и обновлений по дням. Разделы собраны в аккуратные карточки с бейджами статуса.</p>
-      </div>
-      <div className="grid gap-4">
-        {days.map((day) => (
-          <Panel className={["changelog-card p-4", `changelog-card--${day.accent}`].join(' ')} key={day.date}>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-              <div>
-                <p className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted">первые посты по дням</p>
-                <h2 className="mt-1 font-ui text-xl font-bold text-text">{day.date}</h2>
-              </div>
-              <span className="changelog-date-badge rounded-sqd-xs border px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em]">{formatSectionCount(day.sections.length)}</span>
+    <section className="min-w-0" aria-labelledby="changelog-title">
+      <Panel className="github-changelog-hero mb-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="font-mono text-[0.68rem] font-bold uppercase tracking-[0.16em] text-muted">Changelog</p>
+            <h1 id="changelog-title" className="poster-title mt-2 font-display text-4xl leading-none text-text sm:text-5xl">Обновления</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-text-soft">
+              История изменений проекта в формате release notes: по датам, версиям и смысловым группам изменений.
+            </p>
+          </div>
+          <div className="github-changelog-hero-icon" aria-hidden="true">
+            <ScrollText size={30} strokeWidth={1.8} />
+          </div>
+        </div>
+      </Panel>
+
+      <div className="github-release-timeline">
+        {changelogEntries.map((entry) => (
+          <article className="github-release" key={entry.tag}>
+            <div className="github-release-rail" aria-hidden="true">
+              <span className="github-release-node"><GitCommitHorizontal size={18} strokeWidth={1.9} /></span>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {day.sections.map((section) => (
-                <div className="rounded-sqd-sm border border-border bg-surface-2/60 p-3" key={section.title}>
-                  <span className={["changelog-section-badge rounded-sqd-xs border px-2 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.08em]", `changelog-section-badge--${section.title.toLowerCase()}`].join(' ')}>{section.title}</span>
-                  <ul className="mt-3 grid gap-2 text-sm leading-6 text-text-soft">
-                    {section.items.map((item) => <li className="changelog-item rounded-sqd-xs border border-border bg-bg-soft/55 px-3 py-2" key={item}>{item}</li>)}
-                  </ul>
+            <Panel className="github-release-card p-0">
+              <header className="github-release-header">
+                <div className="min-w-0">
+                  <p className="github-release-date">{entry.date}</p>
+                  <h2 className="github-release-title">{entry.title}</h2>
+                  <p className="github-release-description">{entry.description}</p>
                 </div>
-              ))}
-            </div>
-          </Panel>
+                <code className="github-release-tag">{entry.tag}</code>
+              </header>
+
+              <div className="github-release-body">
+                {entry.sections.map((section) => (
+                  <section className="github-release-section" key={section.title}>
+                    <h3>{section.title}</h3>
+                    {section.groups.map((group) => (
+                      <div className="github-release-group" key={`${section.title}-${group.title}`}>
+                        <h4>{group.title}</h4>
+                        <ul>
+                          {group.items.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            </Panel>
+          </article>
         ))}
       </div>
     </section>
@@ -693,6 +913,14 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     setActiveView('feed');
     updateBrowserPath('/');
   };
+
+  const showChangelog = () => {
+    setPreferredConversationId(null);
+    setSelectedPostId(null);
+    setActiveView('changelog');
+    updateBrowserPath('/changelog');
+  };
+
   const navigateView = (target) => {
     if (target === 'moderation') {
       showModeration();
@@ -710,10 +938,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     }
 
     if (target === 'changelog') {
-      setPreferredConversationId(null);
-      setSelectedPostId(null);
-      setActiveView('changelog');
-      updateBrowserPath('/changelog');
+      showChangelog();
       return;
     }
 
@@ -975,6 +1200,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
           <IconButton active={activeView === 'moderation'} icon={ShieldAlert} label="Модерация" onClick={showModeration} />
         ) : null}
 
+        <IconButton active={activeView === 'changelog'} icon={ScrollText} label="Обновления" onClick={showChangelog} />
+
         <div className="relative hidden sm:block" ref={settingsRef}>
           <IconButton
             active={settingsOpen}
@@ -1135,7 +1362,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
       <nav className={[
         'fixed inset-x-3 bottom-3 z-50 grid gap-2 rounded-sqd-md border border-border bg-bg-soft/95 p-2 shadow-[var(--shadow-panel)] backdrop-blur-md lg:hidden',
-        canModerate ? 'grid-cols-5' : 'grid-cols-4',
+        canModerate ? 'grid-cols-4' : 'grid-cols-3',
         isMessageConversationOpen ? 'hidden' : '',
       ].join(' ')} aria-label="Мобильная навигация">
         {displayedMobileNavigation.map((item) => {

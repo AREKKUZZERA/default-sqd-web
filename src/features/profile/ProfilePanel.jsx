@@ -1,4 +1,4 @@
-import { FileText, Home, MessageCircle } from 'lucide-react';
+import { Home, MessageCircle } from 'lucide-react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
@@ -8,7 +8,6 @@ import { getPresenceTone, USER_STATUS_OPTIONS } from '../../shared/utils/presenc
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
   { icon: MessageCircle, label: 'Сообщения', target: 'messages' },
-  { icon: FileText, label: 'Общий список', target: 'changelog' },
 ];
 
 function getMiniNameStyle(name = '') {
