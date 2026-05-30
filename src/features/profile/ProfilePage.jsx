@@ -1,8 +1,9 @@
-import { MessageCircle, Pencil, Upload, UserCircle, X } from 'lucide-react';
+import { MessageCircle, Pencil, Upload, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
+import RolePill from '../../shared/ui/RolePill.jsx';
 import SectionTitle from '../../shared/ui/SectionTitle.jsx';
 import PostCard from '../feed/PostCard.jsx';
 
@@ -437,10 +438,7 @@ export default function ProfilePage({
               <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
               <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted">@{profileUser.userId}</span>
-                <span className="role-pill inline-flex items-center gap-2 rounded-sqd-xs border px-3 py-2 font-mono text-[0.64rem] font-bold uppercase tracking-[0.08em]">
-                  <UserCircle size={14} strokeWidth={1.8} />
-                  роль: {profileUser.role || 'Member'}
-                </span>
+                <RolePill role={profileUser.role} />
                 <span
                   className={[
                     'status-pill inline-flex items-center rounded-sqd-xs border px-3 py-2 text-xs font-bold uppercase',

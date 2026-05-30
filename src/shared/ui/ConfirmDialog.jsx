@@ -1,4 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
+import { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function ConfirmDialog({
   busy = false,
@@ -10,16 +12,41 @@ export default function ConfirmDialog({
   open = false,
   title = 'Подтвердите действие',
 }) {
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !busy) {
+        onCancel?.();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [busy, onCancel, open]);
+
   if (!open) {
     return null;
   }
 
-  return (
-    <div className="confirm-dialog fixed inset-0 z-[90] grid place-items-center bg-black/55 px-4 backdrop-blur-sm" role="presentation">
+  const dialog = (
+    <div className="app-modal-overlay confirm-dialog fixed inset-0 z-[90] grid place-items-center bg-black/55 px-4 backdrop-blur-sm" role="presentation">
       <section
-        aria-describedby="confirm-dialog-description"
+        aria-describedby={description ? descriptionId : undefined}
+        aria-labelledby={titleId}
         aria-modal="true"
-        className="w-full max-w-sm rounded-sqd-md border border-border-strong bg-bg-soft p-4 shadow-[var(--shadow-panel)]"
+        className="app-modal-panel w-full max-w-md rounded-sqd-md border border-border-strong bg-bg-soft p-4 shadow-[var(--shadow-panel)]"
         role="dialog"
       >
         <div className="flex items-start gap-3">
@@ -27,8 +54,8 @@ export default function ConfirmDialog({
             <AlertTriangle aria-hidden="true" size={18} strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
-            <h2 className="font-ui text-base font-bold text-text">{title}</h2>
-            {description ? <p className="mt-1 text-sm leading-5 text-text-soft" id="confirm-dialog-description">{description}</p> : null}
+            <h2 className="font-ui text-base font-bold text-text" id={titleId}>{title}</h2>
+            {description ? <p className="mt-1 text-sm leading-5 text-text-soft" id={descriptionId}>{description}</p> : null}
           </div>
         </div>
 
@@ -53,4 +80,10 @@ export default function ConfirmDialog({
       </section>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return dialog;
+  }
+
+  return createPortal(dialog, document.body);
 }

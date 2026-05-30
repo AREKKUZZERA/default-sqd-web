@@ -1,13 +1,13 @@
-import { Bookmark, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2 } from 'lucide-react';
+import { Bookmark, Eye, Flag, Heart, MessageCircle, Pencil, Repeat2, Send, Share2, ShieldAlert, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { MAX_COMMENT_LENGTH, MAX_POST_LENGTH } from '../../shared/constants/content.js';
 import { hasModerationPermission } from '../../shared/utils/permissions.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
+import useAutosizeTextarea from '../../shared/hooks/useAutosizeTextarea.js';
 import ConfirmDialog from '../../shared/ui/ConfirmDialog.jsx';
 import IconButton from '../../shared/ui/IconButton.jsx';
 import MarkdownBody from '../../shared/ui/MarkdownBody.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
-import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 
 const INITIAL_VISIBLE_COMMENTS = 10;
 
@@ -49,6 +49,7 @@ export default function PostCard({
   const [postError, setPostError] = useState('');
   const [commentError, setCommentError] = useState('');
   const [editingPost, setEditingPost] = useState(false);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const [postDraft, setPostDraft] = useState(post.text);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingDraft, setEditingDraft] = useState('');
@@ -59,6 +60,8 @@ export default function PostCard({
   const [commentSending, setCommentSending] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const commentInputRef = useRef(null);
+  const postEditRef = useRef(null);
+  const commentEditRef = useRef(null);
   const replyCount = post.comments.length;
   const hiddenCommentCount = Math.max(0, replyCount - visibleCommentCount);
   const visibleComments = post.comments.slice(Math.max(0, replyCount - visibleCommentCount));
@@ -69,6 +72,9 @@ export default function PostCard({
   const cardTone = isOwner ? 'post-card--own' : 'post-card--other';
   const activityTone = activityType || 'post';
   const ActivityIcon = activityIconByType[activityTone] || Pencil;
+  useAutosizeTextarea(postEditRef, postDraft, { maxHeight: 560 });
+  useAutosizeTextarea(commentEditRef, editingDraft, { maxHeight: 360 });
+
   const activityTypeLabel = {
     bookmark: 'сохранено',
     like: 'лайк',
@@ -117,11 +123,27 @@ export default function PostCard({
       setPostError('');
       await onUpdatePost(post.id, text);
       setEditingPost(false);
+      setPostPreviewOpen(false);
     } catch (error) {
       setPostError(error.message);
     } finally {
       setPostBusy(false);
     }
+  };
+
+  const cancelEditPost = () => {
+    setEditingPost(false);
+    setPostPreviewOpen(false);
+    setPostDraft(post.text);
+  };
+
+  const handlePostEditKeyDown = (event) => {
+    if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) {
+      return;
+    }
+
+    event.preventDefault();
+    void handlePostUpdate();
   };
 
   const startEditComment = (comment) => {
@@ -258,7 +280,6 @@ export default function PostCard({
             <span className="post-meta font-mono text-[0.7rem] tracking-[0.03em] text-muted">
               @{post.userId} / {post.time}
             </span>
-            <PermissionBadges compact permissions={post.authorPermissions} />
             {tags.map((tag) => (
               <span className="post-tag rounded-sqd-xs border border-border bg-accent-soft px-1.5 py-0.5 font-mono text-[0.58rem] font-extrabold uppercase tracking-[0.08em] text-text" key={tag}>
                 #{tag}
@@ -274,6 +295,7 @@ export default function PostCard({
                       disabled={postBusy}
                       onClick={() => {
                         setEditingPost(true);
+                        setPostPreviewOpen(false);
                         setPostDraft(post.text);
                       }}
                       title="Редактировать пост"
@@ -321,16 +343,32 @@ export default function PostCard({
           {editingPost ? (
             <div className="mt-2 grid gap-2">
               <textarea
-                className="min-h-28 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none focus:border-border-strong"
+                className="autosize-textarea min-h-28 resize-y rounded-sqd-xs border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none focus:border-border-strong"
                 maxLength={MAX_POST_LENGTH}
                 name="post-edit-body"
                 onChange={(event) => setPostDraft(event.target.value)}
+                onKeyDown={handlePostEditKeyDown}
+                ref={postEditRef}
                 value={postDraft}
               />
               <p className={["justify-self-end font-mono text-[0.62rem]", MAX_POST_LENGTH - postDraft.length < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {MAX_POST_LENGTH - postDraft.length}
               </p>
+              {postPreviewOpen && postDraft.trim() ? (
+                <div className="post-preview rounded-sqd-sm border border-border bg-bg-soft/75 p-3" aria-live="polite">
+                  <p className="mb-2 border-b border-border pb-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] text-muted">Предпросмотр</p>
+                  <MarkdownBody className="text-sm leading-6 text-text-soft" value={postDraft.trim()} />
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
+                <button
+                  className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text disabled:opacity-50"
+                  disabled={!postDraft.trim()}
+                  onClick={() => setPostPreviewOpen((isOpen) => !isOpen)}
+                  type="button"
+                >
+                  <span className="inline-flex items-center gap-1.5"><Eye size={13} strokeWidth={1.8} />{postPreviewOpen ? 'скрыть' : 'предпросмотр'}</span>
+                </button>
                 <button
                   className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
                   disabled={!postDraft.trim() || postBusy}
@@ -341,7 +379,7 @@ export default function PostCard({
                 </button>
                 <button
                   className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text"
-                  onClick={() => setEditingPost(false)}
+                  onClick={cancelEditPost}
                   type="button"
                 >
                   отменить
@@ -438,7 +476,6 @@ export default function PostCard({
                               {comment.pending ? 'отправляется' : comment.time}
                               {comment.edited && !comment.pending ? ' / изменено' : ''}
                             </span>
-                            <PermissionBadges compact permissions={comment.authorPermissions} />
                             {ownComment || !comment.pending ? (
                               <span className="ml-auto inline-flex gap-1">
                                 {ownComment ? (
@@ -478,10 +515,11 @@ export default function PostCard({
                           {editing ? (
                             <div className="mt-2 grid gap-2">
                               <textarea
-                                className="min-h-20 resize-none rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
+                                className="autosize-textarea min-h-20 resize-y rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
                                 maxLength={MAX_COMMENT_LENGTH}
                                 name="comment-edit-body"
                                 onChange={(event) => setEditingDraft(event.target.value)}
+                                ref={commentEditRef}
                                 value={editingDraft}
                               />
                               <div className="flex flex-wrap gap-2">

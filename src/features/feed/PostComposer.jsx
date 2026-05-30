@@ -1,8 +1,10 @@
-import { Send } from 'lucide-react';
-import { useState } from 'react';
+import { Eye, Send } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { MAX_POST_LENGTH } from '../../shared/constants/content.js';
+import useAutosizeTextarea from '../../shared/hooks/useAutosizeTextarea.js';
 import { extractHashtags } from '../../shared/utils/hashtags.js';
 import Avatar from '../../shared/ui/Avatar.jsx';
+import MarkdownBody from '../../shared/ui/MarkdownBody.jsx';
 
 const DRAFT_STORAGE_KEY = 'sqd:post-composer:draft';
 
@@ -30,11 +32,16 @@ const writeStoredDraft = (storageKey, value) => {
 
 export default function PostComposer({ currentUser, onPost }) {
   const draftStorageKey = getDraftStorageKey(currentUser?.id);
+  const textareaRef = useRef(null);
   const [draft, setDraft] = useState(() => readStoredDraft(draftStorageKey));
   const [error, setError] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const remaining = MAX_POST_LENGTH - draft.length;
   const hashtags = extractHashtags(draft);
+  const canSubmit = Boolean(draft.trim()) && !sending;
+
+  useAutosizeTextarea(textareaRef, draft, { maxHeight: 560 });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -49,6 +56,7 @@ export default function PostComposer({ currentUser, onPost }) {
       setError('');
       await onPost({ hashtags, text });
       setDraft('');
+      setPreviewOpen(false);
       writeStoredDraft(draftStorageKey, '');
     } catch (postError) {
       setError(postError.message);
@@ -65,7 +73,7 @@ export default function PostComposer({ currentUser, onPost }) {
   };
 
   const handleComposerKeyDown = (event) => {
-    if (event.key !== 'Enter' || event.shiftKey) {
+    if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) {
       return;
     }
 
@@ -74,17 +82,18 @@ export default function PostComposer({ currentUser, onPost }) {
   };
 
   return (
-    <form className="rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
-      <div className="flex gap-3">
+    <form className="post-composer rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
+      <div className="post-composer-layout flex gap-3">
         <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} />
         <div className="min-w-0 flex-1">
           <textarea
-            className="min-h-24 w-full resize-none rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
+            className="autosize-textarea min-h-24 w-full resize-y rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"
             maxLength={MAX_POST_LENGTH}
             name="post-body"
             onChange={handleDraftChange}
             onKeyDown={handleComposerKeyDown}
             placeholder="Напишите новый пост"
+            ref={textareaRef}
             value={draft}
           />
           {hashtags.length > 0 ? (
@@ -96,15 +105,35 @@ export default function PostComposer({ currentUser, onPost }) {
               ))}
             </div>
           ) : null}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted">Markdown и хештеги поддерживаются прямо в тексте.</p>
-            <div className="flex items-center gap-3">
+
+          {previewOpen && draft.trim() ? (
+            <div className="post-preview mt-3 rounded-sqd-sm border border-border bg-bg-soft/75 p-3" aria-live="polite">
+              <div className="mb-2 flex items-center justify-between gap-2 border-b border-border pb-2">
+                <p className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] text-muted">Предпросмотр</p>
+                <span className="font-mono text-[0.58rem] uppercase tracking-[0.08em] text-muted">как в ленте</span>
+              </div>
+              <MarkdownBody className="text-sm leading-6 text-text-soft" value={draft.trim()} />
+            </div>
+          ) : null}
+
+          <div className="post-composer-footer mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="post-composer-hint text-xs text-muted">Enter — новая строка, Ctrl/⌘+Enter — публикация. Markdown, списки и хештеги поддерживаются.</p>
+            <div className="post-composer-actions flex items-center gap-2 sm:gap-3">
               <span className={['font-mono text-[0.65rem]', remaining < 300 ? 'text-warning' : 'text-muted'].join(' ')}>
                 {remaining}
               </span>
               <button
+                className="sqd-button post-composer-preview-button inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text-soft transition hover:border-border-strong hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!draft.trim()}
+                onClick={() => setPreviewOpen((isOpen) => !isOpen)}
+                type="button"
+              >
+                <Eye size={15} strokeWidth={1.8} />
+                {previewOpen ? 'скрыть' : 'предпросмотр'}
+              </button>
+              <button
                 className="sqd-button inline-flex h-10 items-center gap-2 rounded-sqd-xs border border-border-strong bg-accent-soft px-4 font-mono text-[0.68rem] font-bold uppercase tracking-[0.08em] text-text shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035)] transition disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-3 disabled:text-muted disabled:shadow-none"
-                disabled={!draft.trim() || sending}
+                disabled={!canSubmit}
                 type="submit"
               >
                 <Send size={15} strokeWidth={1.8} />
