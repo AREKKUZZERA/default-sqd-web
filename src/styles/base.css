@@ -1890,6 +1890,11 @@ nav[aria-label='Мобильная навигация'] {
   background-size: cover;
 }
 
+.profile-band--media {
+  background-color: rgba(11, 10, 10, 0.96);
+  background-size: contain;
+}
+
 .poster-band::after {
   background:
     linear-gradient(180deg, rgba(3, 4, 5, 0.02), rgba(3, 4, 5, 0.44)),

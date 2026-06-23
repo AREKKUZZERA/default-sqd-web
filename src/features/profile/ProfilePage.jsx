@@ -459,7 +459,10 @@ export default function ProfilePage({
     <section className="min-w-0">
       <Panel className="profile-page-card mb-4 overflow-hidden">
         <div
-          className="profile-hero-band poster-band aspect-[3/1] border-b border-border bg-cover bg-center"
+          className={[
+            'profile-hero-band poster-band aspect-[3/1] border-b border-border',
+            displayedBannerImage ? 'profile-band--media' : '',
+          ].join(' ')}
           style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
         />
         <div className="profile-page-body -mt-10 p-5">

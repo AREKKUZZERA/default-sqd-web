@@ -24,7 +24,10 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
       <Panel className="profile-mini-card overflow-hidden">
         <button className="block w-full text-left" onClick={onOpenProfile} type="button">
           <div
-            className="profile-mini-band poster-band h-24 border-b border-border bg-cover bg-center"
+            className={[
+              'profile-mini-band poster-band h-24 border-b border-border',
+              currentUser.bannerImage ? 'profile-band--media' : '',
+            ].join(' ')}
             style={currentUser.bannerImage ? { backgroundImage: `url(${currentUser.bannerImage})` } : undefined}
           />
         </button>
