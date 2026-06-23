@@ -643,11 +643,14 @@ export default function MessagesPanel({
                         {conversation.message}
                       </span>
                     </span>
-                    {conversation.unread ? (
-                      <span className="grid h-5 min-w-5 place-items-center rounded-full border border-positive/45 bg-positive-soft px-1 font-mono text-[0.6rem] text-positive">
-                        {conversation.unread}
-                      </span>
-                    ) : null}
+                    <span className="messages-dialog-meta">
+                      <span className="messages-dialog-time">{conversation.time}</span>
+                      {conversation.unread ? (
+                        <span className="messages-dialog-unread">
+                          {conversation.unread}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 );
               })
@@ -719,88 +722,97 @@ export default function MessagesPanel({
                         return (
                           <div
                             className={[
-                              'message-bubble group max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
-                              own ? 'message-bubble--own ml-auto border-border-strong bg-accent-soft text-text' : 'border-border bg-surface-2/70 text-text-soft',
-                              message.failed ? 'border-warning/50 bg-warning/10 text-warning' : '',
+                              'message-row group flex w-full items-end gap-2',
+                              own ? 'message-row--own justify-end' : 'message-row--other justify-start',
                             ].join(' ')}
                             key={message.id}
                           >
-                            {editing ? (
-                              <div className="grid gap-2">
-                                <textarea
-                                  className="min-h-20 resize-none rounded-sqd-xs border border-border bg-bg-soft/75 px-3 py-2 text-sm leading-5 text-text outline-none focus:border-border-strong"
-                                  disabled={busy}
-                                  maxLength={1000}
-                                  name="message-edit-body"
-                                  onChange={(event) => setEditingMessageDraft(event.target.value)}
-                                  value={editingMessageDraft}
-                                />
-                                <div className="flex flex-wrap gap-2">
-                                  <button
-                                    className="min-h-10 rounded-sqd-xs border border-border-strong bg-accent-soft px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text disabled:opacity-50"
-                                    disabled={!editingMessageDraft.trim() || busy}
-                                    onClick={() => saveMessageEdit(message.id)}
-                                    type="button"
-                                  >
-                                    {busy ? 'сохраняем...' : 'сохранить'}
-                                  </button>
-                                  <button
-                                    className="min-h-10 rounded-sqd-xs border border-border bg-surface-2/70 px-3 font-mono text-[0.62rem] uppercase tracking-[0.08em] text-text-soft hover:border-border-strong hover:text-text disabled:opacity-50"
+                            {!editing && own && !message.pending && !message.failed ? (
+                              <span className="message-actions" aria-label="Действия сообщения">
+                                <button
+                                  aria-label="Редактировать сообщение"
+                                  className="message-action-button"
+                                  disabled={Boolean(busyMessageId)}
+                                  onClick={() => startEditMessage(message)}
+                                  title="Редактировать"
+                                  type="button"
+                                >
+                                  <Pencil size={14} strokeWidth={1.8} />
+                                </button>
+                                <button
+                                  aria-label="Удалить сообщение"
+                                  className="message-action-button message-action-button--danger"
+                                  disabled={Boolean(busyMessageId)}
+                                  onClick={() => removeMessage(message.id)}
+                                  title="Удалить"
+                                  type="button"
+                                >
+                                  <Trash2 size={14} strokeWidth={1.8} />
+                                </button>
+                              </span>
+                            ) : null}
+                            <div
+                              className={[
+                                'message-bubble max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                                own ? 'message-bubble--own border-border-strong bg-accent-soft text-text' : 'message-bubble--other border-border bg-surface-2/70 text-text-soft',
+                                message.failed ? 'message-bubble--failed border-warning/50 bg-warning/10 text-warning' : '',
+                                editing ? 'message-bubble--editing' : '',
+                              ].join(' ')}
+                            >
+                              {editing ? (
+                                <div className="message-edit-shell">
+                                  <textarea
+                                    className="message-edit-input"
                                     disabled={busy}
-                                    onClick={cancelEditMessage}
-                                    type="button"
-                                  >
-                                    отменить
-                                  </button>
+                                    maxLength={1000}
+                                    name="message-edit-body"
+                                    onChange={(event) => setEditingMessageDraft(event.target.value)}
+                                    value={editingMessageDraft}
+                                  />
+                                  <div className="message-edit-actions">
+                                    <button
+                                      className="message-edit-button message-edit-button--save"
+                                      disabled={!editingMessageDraft.trim() || busy}
+                                      onClick={() => saveMessageEdit(message.id)}
+                                      type="button"
+                                    >
+                                      {busy ? 'сохраняем...' : 'сохранить'}
+                                    </button>
+                                    <button
+                                      className="message-edit-button"
+                                      disabled={busy}
+                                      onClick={cancelEditMessage}
+                                      type="button"
+                                    >
+                                      отменить
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <>
-                                <p className="whitespace-pre-wrap">{message.body}</p>
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                  <p className="font-mono text-[0.56rem] uppercase tracking-[0.08em] text-muted">
-                                    {message.pending ? 'отправляется' : message.time}
-                                    {message.edited && !message.pending ? ' / изменено' : ''}
+                              ) : (
+                                <>
+                                  <p className="message-text whitespace-pre-wrap">{message.body}</p>
+                                  <p className="message-meta">
+                                    {message.edited && !message.pending ? <span>изменено</span> : null}
+                                    <span>{message.pending ? 'отправляется' : message.time}</span>
+                                    {own && !message.pending && !message.failed ? <span className="message-checks">✓✓</span> : null}
                                   </p>
-                                  {!message.pending && !message.failed ? (
-                                    <span className="ml-auto inline-flex gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
-                                      {own ? (
-                                        <button
-                                          aria-label="Редактировать сообщение"
-                                        className="grid size-10 place-items-center rounded-sqd-xs border border-border bg-surface-2/70 text-muted transition hover:border-border-strong hover:text-text disabled:opacity-50 sm:size-8"
-                                        disabled={Boolean(busyMessageId)}
-                                        onClick={() => startEditMessage(message)}
-                                        type="button"
-                                      >
-                                        <Pencil size={14} strokeWidth={1.8} />
-                                      </button>
-                                      ) : null}
-                                      {own ? (
-                                        <button
-                                          aria-label="Удалить сообщение"
-                                          className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
-                                          disabled={Boolean(busyMessageId)}
-                                          onClick={() => removeMessage(message.id)}
-                                          type="button"
-                                        >
-                                          <Trash2 size={14} strokeWidth={1.8} />
-                                        </button>
-                                      ) : (
-                                        <button
-                                          aria-label="Пожаловаться на сообщение"
-                                          className="danger-icon-button grid size-10 place-items-center rounded-sqd-xs border text-muted transition disabled:opacity-50 sm:size-8"
-                                          disabled={Boolean(busyMessageId)}
-                                          onClick={() => onReport?.({ messageId: message.id, targetLabel: `сообщение ${activeParticipant?.name || ''}`, targetUserId: message.authorId })}
-                                          type="button"
-                                        >
-                                          <Flag size={14} strokeWidth={1.8} />
-                                        </button>
-                                      )}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </>
-                            )}
+                                </>
+                              )}
+                            </div>
+                            {!editing && !own && !message.pending && !message.failed ? (
+                              <span className="message-actions" aria-label="Действия сообщения">
+                                <button
+                                  aria-label="Пожаловаться на сообщение"
+                                  className="message-action-button message-action-button--danger"
+                                  disabled={Boolean(busyMessageId)}
+                                  onClick={() => onReport?.({ messageId: message.id, targetLabel: `сообщение ${activeParticipant?.name || ''}`, targetUserId: message.authorId })}
+                                  title="Пожаловаться"
+                                  type="button"
+                                >
+                                  <Flag size={14} strokeWidth={1.8} />
+                                </button>
+                              </span>
+                            ) : null}
                           </div>
                         );
                       })
