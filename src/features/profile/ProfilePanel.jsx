@@ -30,12 +30,12 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
           />
         </button>
 
-        <div className="-mt-8 p-4">
-          <div className="flex items-end justify-between gap-3">
+        <div className="profile-mini-body -mt-8 p-4">
+          <div className="profile-mini-head flex items-end justify-between gap-3">
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
               <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" status={currentUser.status} />
             </button>
-            <label className="grid gap-1 text-right">
+            <label className="profile-mini-status grid gap-1 text-right">
               <span className="font-mono text-[0.52rem] uppercase tracking-[0.08em] text-muted">статус</span>
               <select
                 aria-label="Статус онлайн"
@@ -60,7 +60,7 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
 
           <p className="profile-mini-bio mt-4 text-sm leading-6 text-text-soft">{currentUser.bio || 'Профиль пока без описания.'}</p>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="profile-mini-stats mt-4 grid grid-cols-3 gap-2">
             {currentUser.stats.map((stat) => (
               <div className="profile-mini-stat rounded-sqd-sm border border-border bg-surface-2/65 p-3" key={stat.label}>
                 <p className="font-ui text-lg font-bold text-text">{stat.value}</p>

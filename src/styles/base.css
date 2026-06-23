@@ -1829,3 +1829,303 @@ body {
     padding-bottom: 3rem;
   }
 }
+
+/* Profile and shell refinement pass. Keeps the existing poster identity, but makes spacing and presence states stable. */
+:root {
+  --shadow-panel: 0 18px 52px rgba(0, 0, 0, 0.38);
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.26);
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% -12rem, rgba(120, 199, 189, 0.055), transparent 28rem),
+    radial-gradient(circle at 85% 7rem, rgba(192, 106, 130, 0.05), transparent 26rem),
+    #030405;
+}
+
+body::before {
+  opacity: 0.44;
+}
+
+body::after {
+  opacity: 0.28;
+}
+
+.poster-header,
+.poster-mobile-search,
+nav[aria-label='Мобильная навигация'] {
+  border-color: rgba(238, 232, 225, 0.13);
+  background: rgba(9, 12, 15, 0.82);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.poster-panel,
+.post-composer {
+  border-color: rgba(238, 232, 225, 0.12);
+  background:
+    linear-gradient(180deg, rgba(238, 232, 225, 0.028), transparent 42%),
+    rgba(15, 19, 23, 0.9);
+  box-shadow: var(--shadow-panel);
+}
+
+.poster-panel:hover {
+  border-color: rgba(238, 232, 225, 0.18);
+}
+
+.poster-band {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(238, 232, 225, 0.11), transparent 9rem),
+    radial-gradient(circle at 12% 90%, rgba(120, 199, 189, 0.1), transparent 11rem),
+    linear-gradient(135deg, #050607 0%, #11171d 54%, #07090c 100%);
+}
+
+.poster-band::after {
+  background:
+    linear-gradient(180deg, rgba(3, 4, 5, 0.02), rgba(3, 4, 5, 0.44)),
+    linear-gradient(90deg, rgba(120, 199, 189, 0.08), transparent 42%, rgba(192, 106, 130, 0.07));
+}
+
+.poster-avatar {
+  overflow: visible;
+  border-color: rgba(238, 232, 225, 0.28);
+  background: linear-gradient(180deg, rgba(238, 232, 225, 0.09), rgba(238, 232, 225, 0.03));
+  box-shadow:
+    0 0 0 3px rgba(8, 10, 12, 0.9),
+    0 0 0 4px rgba(238, 232, 225, 0.09),
+    0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+.poster-avatar img {
+  display: block;
+}
+
+.avatar-status-dot {
+  border: 2px solid #090c0f;
+  box-shadow:
+    0 0 0 1px rgba(238, 232, 225, 0.16),
+    0 0 0 4px rgba(9, 12, 15, 0.92),
+    0 0 18px currentColor;
+}
+
+.avatar-status-dot--dnd::after {
+  left: 23%;
+  right: 23%;
+  height: 2px;
+  background: #090c0f;
+}
+
+.profile-mini-body,
+.profile-page-body {
+  background: linear-gradient(180deg, rgba(15, 19, 23, 0), rgba(15, 19, 23, 0.18));
+}
+
+.profile-mini-head,
+.profile-page-head {
+  min-width: 0;
+}
+
+.profile-mini-status,
+.profile-status-control {
+  min-width: 9.4rem;
+}
+
+.status-select,
+.status-pill {
+  min-height: 2.35rem;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.status-select {
+  max-width: 100%;
+  background-color: rgba(8, 11, 14, 0.72);
+}
+
+.status-pill {
+  box-shadow:
+    inset 0 1px 0 rgba(238, 232, 225, 0.045),
+    0 8px 22px rgba(0, 0, 0, 0.14);
+}
+
+.status-pill--online {
+  border-color: rgba(35, 165, 90, 0.62);
+  background: linear-gradient(180deg, rgba(35, 165, 90, 0.18), rgba(35, 165, 90, 0.1));
+  color: #a5f0c0;
+}
+
+.status-pill--idle {
+  border-color: rgba(240, 178, 50, 0.62);
+  background: linear-gradient(180deg, rgba(240, 178, 50, 0.18), rgba(240, 178, 50, 0.1));
+  color: #ffe19a;
+}
+
+.status-pill--dnd {
+  border-color: rgba(242, 63, 67, 0.62);
+  background: linear-gradient(180deg, rgba(242, 63, 67, 0.18), rgba(242, 63, 67, 0.1));
+  color: #ffb0b2;
+}
+
+.status-pill--offline {
+  border-color: rgba(128, 132, 142, 0.48);
+  background: linear-gradient(180deg, rgba(128, 132, 142, 0.14), rgba(128, 132, 142, 0.08));
+  color: #bdc2cc;
+}
+
+.profile-mini-name,
+.profile-page-name {
+  color: #f5f0ea;
+}
+
+.profile-mini-bio,
+.profile-page-card p {
+  text-wrap: pretty;
+}
+
+.profile-mini-stats,
+.profile-page-stats {
+  align-items: stretch;
+}
+
+.profile-mini-stat,
+.profile-stat-card {
+  display: grid;
+  min-width: 0;
+  min-height: 4.05rem;
+  align-content: center;
+  border-color: rgba(238, 232, 225, 0.13);
+  background:
+    linear-gradient(180deg, rgba(238, 232, 225, 0.035), transparent),
+    rgba(12, 16, 20, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(238, 232, 225, 0.045),
+    var(--shadow-soft);
+}
+
+.profile-mini-stat::before,
+.profile-stat-card::before {
+  left: 0.85rem;
+  width: 2rem;
+  background: linear-gradient(90deg, rgba(120, 199, 189, 0.75), transparent);
+}
+
+.profile-mini-stat p,
+.profile-stat-card p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.role-pill,
+.permission-badge,
+.side-nav-item,
+.trend-card,
+.filter-chip,
+.sqd-icon-action,
+.poster-button {
+  box-shadow: inset 0 1px 0 rgba(238, 232, 225, 0.035);
+}
+
+.role-pill,
+.permission-badge {
+  background: rgba(11, 15, 19, 0.68);
+}
+
+.side-nav-item,
+.trend-card {
+  background: rgba(12, 16, 20, 0.62);
+}
+
+.side-nav-item--active {
+  border-color: rgba(120, 199, 189, 0.34);
+  background:
+    linear-gradient(90deg, rgba(120, 199, 189, 0.15), rgba(192, 106, 130, 0.08)),
+    rgba(12, 16, 20, 0.82);
+  box-shadow: inset 3px 0 0 rgba(120, 199, 189, 0.9);
+}
+
+.post-card,
+.comment-card,
+.activity-ribbon,
+.post-preview {
+  border-color: rgba(238, 232, 225, 0.12);
+}
+
+@media (min-width: 1024px) {
+  .poster-main {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .poster-app:not(.poster-app--messages) {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .poster-header {
+    gap: 0.45rem;
+    padding: 0.55rem;
+  }
+
+  .profile-page-card {
+    border-radius: 0.9rem;
+  }
+
+  .profile-hero-band {
+    aspect-ratio: 2.2 / 1;
+  }
+
+  .profile-page-body {
+    padding: 1rem;
+  }
+
+  .profile-page-head {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .profile-status-actions {
+    justify-items: stretch;
+  }
+
+  .profile-status-control,
+  .profile-status-actions .status-pill,
+  .profile-status-actions .status-select {
+    width: 100%;
+  }
+
+  .profile-page-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .profile-stat-card {
+    min-height: 4.4rem;
+    padding: 0.75rem;
+  }
+
+  .profile-stat-card p:first-child {
+    font-size: 1.25rem;
+  }
+
+  .profile-stat-card p:last-child {
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+  }
+
+  nav[aria-label='Мобильная навигация'] {
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .profile-page-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-stat-card {
+    min-height: 3.8rem;
+  }
+}

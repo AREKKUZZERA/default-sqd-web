@@ -457,17 +457,17 @@ export default function ProfilePage({
 
   return (
     <section className="min-w-0">
-      <Panel className="mb-4 overflow-hidden">
+      <Panel className="profile-page-card mb-4 overflow-hidden">
         <div
           className="profile-hero-band poster-band aspect-[3/1] border-b border-border bg-cover bg-center"
           style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
         />
-        <div className="-mt-10 p-5">
+        <div className="profile-page-body -mt-10 p-5">
           <div className="flex flex-wrap items-end gap-4">
             <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" status={editing ? draft.status : profileUser.status} />
           </div>
 
-          <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
+          <div className="profile-page-head mt-5 flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="profile-page-name poster-title font-display leading-none text-text" title={profileUser.name}>{profileUser.name}</h1>
               <div className="profile-meta-row mt-3 flex flex-wrap items-center gap-2">
@@ -726,7 +726,7 @@ export default function ProfilePage({
             </form>
           ) : null}
 
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <div className="profile-page-stats mt-5 grid gap-2 sm:grid-cols-3">
             {profileUser.stats.map((stat) => (
               <div className="profile-stat-card rounded-sqd-sm border border-border bg-surface-2/65 p-4" key={stat.label}>
                 <p className="font-ui text-2xl font-bold text-text">{stat.value}</p>
