@@ -1878,6 +1878,16 @@ nav[aria-label='Мобильная навигация'] {
     radial-gradient(circle at 82% 10%, rgba(238, 232, 225, 0.11), transparent 9rem),
     radial-gradient(circle at 12% 90%, rgba(120, 199, 189, 0.1), transparent 11rem),
     linear-gradient(135deg, #050607 0%, #11171d 54%, #07090c 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.profile-hero-band,
+.profile-mini-band {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .poster-band::after {
