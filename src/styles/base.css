@@ -230,7 +230,7 @@ button {
   left: 10px;
   right: 10px;
   height: 3px;
-  background: linear-gradient(90deg, rgba(183, 100, 124, 0.55) 0 24%, transparent 24% 36%, rgba(123, 191, 180, 0.34) 36% 64%, transparent 64% 76%, rgba(183, 100, 124, 0.55) 76% 100%);
+  background: rgba(217, 162, 95, 0.5);
   content: '';
 }
 
@@ -260,7 +260,7 @@ button {
   font-weight: 800;
   line-height: 1;
   opacity: 0.16;
-  text-shadow: 2.8rem 1.35rem 0 rgba(123, 191, 180, 0.22), 5.1rem -0.15rem 0 rgba(183, 100, 124, 0.16), 7.6rem 1rem 0 rgba(123, 191, 180, 0.12);
+  text-shadow: 2.8rem 1.35rem 0 rgba(138, 184, 154, 0.22), 5.1rem -0.15rem 0 rgba(217, 162, 95, 0.16), 7.6rem 1rem 0 rgba(138, 184, 154, 0.12);
 }
 
 .poster-panel::after {
@@ -289,16 +289,14 @@ button {
 }
 
 .poster-band {
-  background:
-    linear-gradient(rgba(10, 12, 14, 0.32), rgba(10, 12, 14, 0.32)),
-    repeating-linear-gradient(135deg, rgba(183, 100, 124, 0.36) 0 2px, rgba(123, 191, 180, 0.11) 2px 5px);
+  background: #111417;
 }
 
 .poster-title {
   font-family: var(--font-display);
   font-weight: 800;
   letter-spacing: 0;
-  text-shadow: 0 1px 0 rgba(183, 100, 124, 0.16);
+  text-shadow: 0 1px 0 rgba(217, 162, 95, 0.16);
   text-transform: uppercase;
 }
 
@@ -419,7 +417,7 @@ button {
 }
 
 .message-bubble--own {
-  box-shadow: inset 0 -2px 0 rgba(123, 191, 180, 0.14);
+  box-shadow: inset 0 -2px 0 rgba(138, 184, 154, 0.14);
 }
 
 @keyframes message-pop {
@@ -660,10 +658,7 @@ body {
 
 .poster-band {
   position: relative;
-  background:
-    radial-gradient(circle at 78% 12%, rgba(232, 224, 218, 0.08), transparent 18rem),
-    radial-gradient(circle at 18% 86%, rgba(120, 199, 189, 0.06), transparent 18rem),
-    linear-gradient(135deg, #07080a 0%, #101419 58%, #07090b 100%);
+  background: #101316;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -672,7 +667,7 @@ body {
 .poster-band::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(3, 4, 5, 0.04), rgba(3, 4, 5, 0.34));
+  background: rgba(3, 4, 5, 0.28);
   content: '';
   pointer-events: none;
 }
@@ -689,7 +684,7 @@ body {
 }
 
 .avatar-status-dot {
-  box-shadow: 0 0 0 3px rgba(120, 199, 189, 0.1), 0 0 18px rgba(120, 199, 189, 0.35);
+  box-shadow: 0 0 0 3px rgba(138, 184, 154, 0.1), 0 0 18px rgba(138, 184, 154, 0.35);
 }
 
 .poster-button {
@@ -717,18 +712,18 @@ body {
 
 .poster-button[aria-pressed='true'] {
   border-color: rgba(238, 232, 225, 0.24);
-  background: rgba(192, 106, 130, 0.13);
+  background: rgba(217, 162, 95, 0.13);
   box-shadow: inset 0 0 0 1px rgba(238, 232, 225, 0.035);
 }
 
 .post-actions .poster-button[aria-label='Лайк'][aria-pressed='true'] {
-  border-color: rgba(192, 106, 130, 0.42);
-  color: #e7a2b3;
+  border-color: rgba(217, 162, 95, 0.42);
+  color: #efc78e;
 }
 
 .post-actions .poster-button[aria-label='Репост'][aria-pressed='true'] {
-  border-color: rgba(120, 199, 189, 0.42);
-  color: #9edbd3;
+  border-color: rgba(138, 184, 154, 0.42);
+  color: #bed8c6;
 }
 
 .post-actions .poster-button[aria-label='В избранное'][aria-pressed='true'] {
@@ -745,7 +740,7 @@ body {
 }
 
 .profile-mini-band::after {
-  background: linear-gradient(180deg, rgba(3, 4, 5, 0.05), rgba(18, 22, 26, 0.62));
+  background: rgba(3, 4, 5, 0.38);
 }
 
 .profile-mini-name,
@@ -785,10 +780,10 @@ body {
 }
 
 .status-pill--online {
-  border-color: rgba(120, 199, 189, 0.42);
-  background: rgba(120, 199, 189, 0.08);
-  color: #9edbd3;
-  box-shadow: inset 0 0 0 1px rgba(120, 199, 189, 0.045);
+  border-color: rgba(138, 184, 154, 0.42);
+  background: rgba(138, 184, 154, 0.08);
+  color: #bed8c6;
+  box-shadow: inset 0 0 0 1px rgba(138, 184, 154, 0.045);
 }
 
 .status-pill--offline {
@@ -820,7 +815,7 @@ body {
   left: 1rem;
   width: 2.4rem;
   height: 1px;
-  background: rgba(120, 199, 189, 0.45);
+  background: rgba(138, 184, 154, 0.45);
   content: '';
 }
 
@@ -850,12 +845,12 @@ body {
 .side-nav-item--active,
 .author-filter--active {
   border-color: rgba(238, 232, 225, 0.24);
-  background: rgba(192, 106, 130, 0.11);
-  box-shadow: inset 2px 0 0 rgba(120, 199, 189, 0.78);
+  background: rgba(217, 162, 95, 0.11);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.78);
 }
 
 .author-filter--active {
-  box-shadow: inset 0 -2px 0 rgba(120, 199, 189, 0.78);
+  box-shadow: inset 0 -2px 0 rgba(138, 184, 154, 0.78);
 }
 
 .post-card {
@@ -866,7 +861,7 @@ body {
 }
 
 .post-card--own {
-  border-left-color: rgba(120, 199, 189, 0.62);
+  border-left-color: rgba(138, 184, 154, 0.62);
 }
 
 .post-card--other {
@@ -880,7 +875,7 @@ body {
 }
 
 .post-card--own:hover {
-  border-left-color: rgba(120, 199, 189, 0.62);
+  border-left-color: rgba(138, 184, 154, 0.62);
 }
 
 .post-card--other:hover {
@@ -893,14 +888,14 @@ body {
 
 .post-tag {
   border-color: rgba(238, 232, 225, 0.12);
-  background: rgba(192, 106, 130, 0.095);
+  background: rgba(217, 162, 95, 0.095);
   color: var(--color-text-soft);
 }
 
 .activity-ribbon {
   border-color: rgba(238, 232, 225, 0.12);
   background: rgba(9, 11, 13, 0.58);
-  box-shadow: inset 2px 0 0 rgba(120, 199, 189, 0.64);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.64);
 }
 
 .activity-ribbon__icon {
@@ -922,11 +917,11 @@ body {
 }
 
 .activity-ribbon--like {
-  box-shadow: inset 2px 0 0 rgba(192, 106, 130, 0.68);
+  box-shadow: inset 2px 0 0 rgba(217, 162, 95, 0.68);
 }
 
 .activity-ribbon--repost {
-  box-shadow: inset 2px 0 0 rgba(120, 199, 189, 0.68);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.68);
 }
 
 .activity-ribbon--bookmark {
@@ -943,9 +938,9 @@ body {
 }
 
 .comment-card--own {
-  border-color: rgba(120, 199, 189, 0.22);
-  background: rgba(120, 199, 189, 0.07);
-  box-shadow: inset 2px 0 0 rgba(120, 199, 189, 0.55);
+  border-color: rgba(138, 184, 154, 0.22);
+  background: rgba(138, 184, 154, 0.07);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.55);
 }
 
 @media (min-width: 1024px) {
@@ -1091,7 +1086,7 @@ body {
 
 .post-preview {
   overflow-x: auto;
-  box-shadow: inset 2px 0 0 rgba(120, 199, 189, 0.42);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.42);
 }
 
 .profile-mini-access-row .role-pill,
@@ -1115,14 +1110,14 @@ body {
 }
 
 .primary-action-button {
-  border-color: rgba(120, 199, 189, 0.4) !important;
-  background: rgba(120, 199, 189, 0.12) !important;
+  border-color: rgba(138, 184, 154, 0.4) !important;
+  background: rgba(138, 184, 154, 0.12) !important;
   color: #b8e5df !important;
 }
 
 .primary-action-button:hover:not(:disabled) {
-  border-color: rgba(120, 199, 189, 0.62) !important;
-  background: rgba(120, 199, 189, 0.17) !important;
+  border-color: rgba(138, 184, 154, 0.62) !important;
+  background: rgba(138, 184, 154, 0.17) !important;
 }
 
 .permission-badge {
@@ -1139,8 +1134,8 @@ body {
 }
 
 .permission-badge--creator {
-  border-color: rgba(192, 106, 130, 0.42);
-  background: rgba(192, 106, 130, 0.1);
+  border-color: rgba(217, 162, 95, 0.42);
+  background: rgba(217, 162, 95, 0.1);
   color: #e2a6b6;
 }
 
@@ -1151,8 +1146,8 @@ body {
 }
 
 .permission-badge--moderator {
-  border-color: rgba(120, 199, 189, 0.46);
-  background: rgba(120, 199, 189, 0.1);
+  border-color: rgba(138, 184, 154, 0.46);
+  background: rgba(138, 184, 154, 0.1);
   color: #a6ded7;
 }
 
@@ -1279,9 +1274,9 @@ body {
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid rgba(120, 199, 189, 0.48);
+  border-left: 3px solid rgba(138, 184, 154, 0.48);
   border-radius: var(--radius-xs);
-  background: rgba(120, 199, 189, 0.06);
+  background: rgba(138, 184, 154, 0.06);
   color: var(--color-text-soft);
   padding: 0.65rem 0.8rem;
 }
@@ -1389,8 +1384,8 @@ body {
 }
 
 .report-status--resolved {
-  border-color: rgba(120, 199, 189, 0.44);
-  background: rgba(120, 199, 189, 0.11);
+  border-color: rgba(138, 184, 154, 0.44);
+  background: rgba(138, 184, 154, 0.11);
   color: #a6ded7;
 }
 
@@ -1420,14 +1415,14 @@ body {
 }
 
 .sqd-icon-action--preview {
-  border-color: rgba(157, 167, 255, 0.32);
-  background: rgba(157, 167, 255, 0.09);
+  border-color: rgba(138, 184, 154, 0.32);
+  background: rgba(138, 184, 154, 0.09);
   color: #c4c9ff;
 }
 
 .sqd-icon-action--publish {
-  border-color: rgba(120, 199, 189, 0.42);
-  background: rgba(120, 199, 189, 0.14);
+  border-color: rgba(138, 184, 154, 0.42);
+  background: rgba(138, 184, 154, 0.14);
   color: #a8e1da;
 }
 
@@ -1504,7 +1499,7 @@ body {
   inset: 0 0 auto 0;
   height: 1px;
   content: '';
-  background: linear-gradient(90deg, rgba(120, 199, 189, 0.72), rgba(157, 167, 255, 0.38), transparent);
+  background: rgba(138, 184, 154, 0.62);
 }
 
 .github-changelog-hero-icon {
@@ -1513,9 +1508,9 @@ body {
   height: 3.25rem;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgba(120, 199, 189, 0.34);
+  border: 1px solid rgba(138, 184, 154, 0.34);
   border-radius: var(--radius-sm);
-  background: rgba(120, 199, 189, 0.1);
+  background: rgba(138, 184, 154, 0.1);
   color: #a8e1da;
   box-shadow: inset 0 1px 0 rgba(238, 232, 225, 0.04);
 }
@@ -1837,10 +1832,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at 50% -12rem, rgba(120, 199, 189, 0.055), transparent 28rem),
-    radial-gradient(circle at 85% 7rem, rgba(192, 106, 130, 0.05), transparent 26rem),
-    #030405;
+  background: #030303;
 }
 
 body::before {
@@ -1863,9 +1855,7 @@ nav[aria-label='Мобильная навигация'] {
 .poster-panel,
 .post-composer {
   border-color: rgba(238, 232, 225, 0.12);
-  background:
-    linear-gradient(180deg, rgba(238, 232, 225, 0.028), transparent 42%),
-    rgba(15, 19, 23, 0.9);
+  background: rgba(15, 19, 23, 0.9);
   box-shadow: var(--shadow-panel);
 }
 
@@ -1874,10 +1864,7 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .poster-band {
-  background:
-    radial-gradient(circle at 82% 10%, rgba(238, 232, 225, 0.11), transparent 9rem),
-    radial-gradient(circle at 12% 90%, rgba(120, 199, 189, 0.1), transparent 11rem),
-    linear-gradient(135deg, #050607 0%, #11171d 54%, #07090c 100%);
+  background: #11171d;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -1892,19 +1879,16 @@ nav[aria-label='Мобильная навигация'] {
 
 .profile-band--media {
   background-color: rgba(11, 10, 10, 0.96);
-  background-size: contain;
 }
 
 .poster-band::after {
-  background:
-    linear-gradient(180deg, rgba(3, 4, 5, 0.02), rgba(3, 4, 5, 0.44)),
-    linear-gradient(90deg, rgba(120, 199, 189, 0.08), transparent 42%, rgba(192, 106, 130, 0.07));
+  background: rgba(3, 4, 5, 0.38);
 }
 
 .poster-avatar {
   overflow: visible;
   border-color: rgba(238, 232, 225, 0.28);
-  background: linear-gradient(180deg, rgba(238, 232, 225, 0.09), rgba(238, 232, 225, 0.03));
+  background: rgba(238, 232, 225, 0.055);
   box-shadow:
     0 0 0 3px rgba(8, 10, 12, 0.9),
     0 0 0 4px rgba(238, 232, 225, 0.09),
@@ -1932,7 +1916,7 @@ nav[aria-label='Мобильная навигация'] {
 
 .profile-mini-body,
 .profile-page-body {
-  background: linear-gradient(180deg, rgba(15, 19, 23, 0), rgba(15, 19, 23, 0.18));
+  background: rgba(15, 19, 23, 0.08);
 }
 
 .profile-mini-head,
@@ -1970,25 +1954,25 @@ nav[aria-label='Мобильная навигация'] {
 
 .status-pill--online {
   border-color: rgba(35, 165, 90, 0.62);
-  background: linear-gradient(180deg, rgba(35, 165, 90, 0.18), rgba(35, 165, 90, 0.1));
+  background: rgba(35, 165, 90, 0.14);
   color: #a5f0c0;
 }
 
 .status-pill--idle {
   border-color: rgba(240, 178, 50, 0.62);
-  background: linear-gradient(180deg, rgba(240, 178, 50, 0.18), rgba(240, 178, 50, 0.1));
+  background: rgba(240, 178, 50, 0.14);
   color: #ffe19a;
 }
 
 .status-pill--dnd {
   border-color: rgba(242, 63, 67, 0.62);
-  background: linear-gradient(180deg, rgba(242, 63, 67, 0.18), rgba(242, 63, 67, 0.1));
+  background: rgba(242, 63, 67, 0.14);
   color: #ffb0b2;
 }
 
 .status-pill--offline {
   border-color: rgba(128, 132, 142, 0.48);
-  background: linear-gradient(180deg, rgba(128, 132, 142, 0.14), rgba(128, 132, 142, 0.08));
+  background: rgba(128, 132, 142, 0.11);
   color: #bdc2cc;
 }
 
@@ -2014,9 +1998,7 @@ nav[aria-label='Мобильная навигация'] {
   min-height: 4.05rem;
   align-content: center;
   border-color: rgba(238, 232, 225, 0.13);
-  background:
-    linear-gradient(180deg, rgba(238, 232, 225, 0.035), transparent),
-    rgba(12, 16, 20, 0.72);
+  background: rgba(12, 16, 20, 0.72);
   box-shadow:
     inset 0 1px 0 rgba(238, 232, 225, 0.045),
     var(--shadow-soft);
@@ -2026,7 +2008,7 @@ nav[aria-label='Мобильная навигация'] {
 .profile-stat-card::before {
   left: 0.85rem;
   width: 2rem;
-  background: linear-gradient(90deg, rgba(120, 199, 189, 0.75), transparent);
+  background: rgba(138, 184, 154, 0.75);
 }
 
 .profile-mini-stat p,
@@ -2056,11 +2038,9 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .side-nav-item--active {
-  border-color: rgba(120, 199, 189, 0.34);
-  background:
-    linear-gradient(90deg, rgba(120, 199, 189, 0.15), rgba(192, 106, 130, 0.08)),
-    rgba(12, 16, 20, 0.82);
-  box-shadow: inset 3px 0 0 rgba(120, 199, 189, 0.9);
+  border-color: rgba(138, 184, 154, 0.34);
+  background: rgba(138, 184, 154, 0.12);
+  box-shadow: inset 3px 0 0 rgba(138, 184, 154, 0.9);
 }
 
 .post-card,
@@ -2153,76 +2133,67 @@ nav[aria-label='Мобильная навигация'] {
 .poster-header,
 .poster-mobile-search,
 nav[aria-label='Мобильная навигация'] {
-  border-color: rgba(255, 255, 255, 0.075);
-  background: rgba(18, 18, 18, 0.86);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  border-color: rgba(235, 232, 224, 0.08);
+  background: rgba(10, 11, 12, 0.88);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
 }
 
 .poster-header:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(25, 24, 23, 0.92);
+  border-color: rgba(235, 232, 224, 0.14);
+  background: rgba(16, 17, 18, 0.92);
 }
 
 .poster-panel,
 .post-composer {
-  border-color: rgba(255, 255, 255, 0.055);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.032), transparent 42%),
-    rgba(33, 31, 30, 0.91);
+  border-color: rgba(235, 232, 224, 0.075);
+  background: rgba(23, 25, 27, 0.92);
 }
 
 .poster-panel:hover {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(235, 232, 224, 0.14);
 }
 
 .poster-band {
-  background:
-    radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.1), transparent 9rem),
-    radial-gradient(circle at 12% 90%, rgba(255, 159, 90, 0.13), transparent 11rem),
-    linear-gradient(135deg, #0b0a0a 0%, #262321 54%, #191817 100%);
+  background: #16191b;
 }
 
 .poster-band::after {
-  background:
-    linear-gradient(180deg, rgba(11, 10, 10, 0.02), rgba(11, 10, 10, 0.44)),
-    linear-gradient(90deg, rgba(143, 211, 199, 0.08), transparent 42%, rgba(255, 159, 90, 0.09));
+  background: rgba(3, 3, 3, 0.34);
 }
 
 .poster-avatar {
-  border-color: rgba(255, 255, 255, 0.17);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border-color: rgba(235, 232, 224, 0.16);
+  background: rgba(235, 232, 224, 0.055);
   box-shadow:
     0 0 0 3px rgba(11, 10, 10, 0.9),
-    0 0 0 4px rgba(255, 255, 255, 0.075),
+    0 0 0 4px rgba(235, 232, 224, 0.07),
     0 12px 28px rgba(0, 0, 0, 0.34);
 }
 
 .profile-mini-body,
 .profile-page-body {
-  background: linear-gradient(180deg, rgba(33, 31, 30, 0), rgba(33, 31, 30, 0.2));
+  background: rgba(23, 25, 27, 0.12);
 }
 
 .profile-mini-stat,
 .profile-stat-card {
-  border-color: rgba(255, 255, 255, 0.075);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
-    rgba(38, 35, 33, 0.74);
+  border-color: rgba(235, 232, 224, 0.08);
+  background: rgba(32, 35, 38, 0.72);
 }
 
 .profile-mini-stat::before,
 .profile-stat-card::before {
-  background: linear-gradient(90deg, rgba(255, 159, 90, 0.78), transparent);
+  background: rgba(217, 162, 95, 0.78);
 }
 
 .role-pill,
 .permission-badge {
-  background: rgba(33, 31, 30, 0.72);
+  background: rgba(23, 25, 27, 0.72);
 }
 
 .side-nav-item,
 .trend-card {
-  background: rgba(38, 35, 33, 0.66);
+  background: rgba(32, 35, 38, 0.66);
 }
 
 .side-nav-item:hover,
@@ -2231,65 +2202,63 @@ nav[aria-label='Мобильная навигация'] {
 .sqd-button:hover,
 .poster-button:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(45, 41, 39, 0.78);
+  background: rgba(42, 46, 49, 0.78);
 }
 
 .side-nav-item--active,
 .author-filter--active {
-  border-color: rgba(255, 159, 90, 0.38);
-  background:
-    linear-gradient(90deg, rgba(255, 159, 90, 0.15), rgba(143, 211, 199, 0.08)),
-    rgba(38, 35, 33, 0.84);
-  box-shadow: inset 3px 0 0 rgba(255, 159, 90, 0.9);
+  border-color: rgba(217, 162, 95, 0.4);
+  background: rgba(217, 162, 95, 0.13);
+  box-shadow: inset 3px 0 0 rgba(217, 162, 95, 0.9);
 }
 
 .author-filter--active {
-  box-shadow: inset 0 -2px 0 rgba(255, 159, 90, 0.9);
+  box-shadow: inset 0 -2px 0 rgba(217, 162, 95, 0.9);
 }
 
 .post-card,
 .comment-card,
 .activity-ribbon,
 .post-preview {
-  border-color: rgba(255, 255, 255, 0.055);
+  border-color: rgba(235, 232, 224, 0.075);
 }
 
 .post-card {
-  background: rgba(33, 31, 30, 0.91);
-  border-left-color: rgba(255, 255, 255, 0.08);
+  background: rgba(23, 25, 27, 0.92);
+  border-left-color: rgba(235, 232, 224, 0.09);
 }
 
 .post-card--own,
 .post-card--own:hover {
-  border-left-color: rgba(255, 159, 90, 0.66);
+  border-left-color: rgba(217, 162, 95, 0.68);
 }
 
 .post-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(38, 35, 33, 0.95);
+  border-color: rgba(235, 232, 224, 0.13);
+  background: rgba(30, 33, 35, 0.96);
 }
 
 .post-tag,
 .poster-button[aria-pressed='true'],
 .filter-chip:not(.filter-chip--static):hover {
-  background: rgba(255, 159, 90, 0.14);
+  background: rgba(217, 162, 95, 0.14);
 }
 
 .activity-ribbon,
 .comment-card:hover {
-  background: rgba(33, 31, 30, 0.88);
+  background: rgba(23, 25, 27, 0.9);
 }
 
 .activity-ribbon {
-  box-shadow: inset 2px 0 0 rgba(143, 211, 199, 0.58);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.58);
 }
 
 .activity-ribbon--like {
-  box-shadow: inset 2px 0 0 rgba(255, 159, 90, 0.7);
+  box-shadow: inset 2px 0 0 rgba(217, 162, 95, 0.7);
 }
 
 .activity-ribbon--repost {
-  box-shadow: inset 2px 0 0 rgba(143, 211, 199, 0.7);
+  box-shadow: inset 2px 0 0 rgba(138, 184, 154, 0.7);
 }
 
 .activity-ribbon--bookmark {
@@ -2297,13 +2266,13 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .post-actions .poster-button[aria-label='Лайк'][aria-pressed='true'] {
-  border-color: rgba(255, 159, 90, 0.5);
-  color: #ffc28f;
+  border-color: rgba(217, 162, 95, 0.5);
+  color: #efc78e;
 }
 
 .post-actions .poster-button[aria-label='Репост'][aria-pressed='true'] {
-  border-color: rgba(143, 211, 199, 0.46);
-  color: #b7e7df;
+  border-color: rgba(138, 184, 154, 0.46);
+  color: #bed8c6;
 }
 
 .post-actions .poster-button[aria-label='В избранное'][aria-pressed='true'] {
@@ -2332,19 +2301,19 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .sqd-icon-action--preview {
-  border-color: rgba(143, 211, 199, 0.34);
-  background: rgba(143, 211, 199, 0.1);
-  color: #b7e7df;
+  border-color: rgba(138, 184, 154, 0.34);
+  background: rgba(138, 184, 154, 0.1);
+  color: #bed8c6;
 }
 
 .github-changelog-hero::before {
-  background: linear-gradient(90deg, rgba(255, 159, 90, 0.72), rgba(143, 211, 199, 0.4), transparent);
+  background: rgba(217, 162, 95, 0.72);
 }
 
 .github-changelog-hero-icon {
-  border-color: rgba(255, 159, 90, 0.38);
-  background: rgba(255, 159, 90, 0.14);
-  color: #ffc28f;
+  border-color: rgba(217, 162, 95, 0.38);
+  background: rgba(217, 162, 95, 0.14);
+  color: #efc78e;
 }
 
 .github-release-node {
@@ -2356,5 +2325,5 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .messages-chat--active .messages-composer {
-  background: rgba(33, 31, 30, 0.96);
+  background: rgba(23, 25, 27, 0.96);
 }
