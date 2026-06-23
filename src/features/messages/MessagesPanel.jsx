@@ -94,6 +94,7 @@ export default function MessagesPanel({
   const messageInputRef = useRef(null);
   const reloadTimerRef = useRef(null);
   const messagesListRef = useRef(null);
+  const pendingPrependScrollRef = useRef(null);
   const pendingScrollBehaviorRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const preferredConversationIdRef = useRef(preferredConversationId);
@@ -288,6 +289,16 @@ export default function MessagesPanel({
   const hasOlderMessages = activeConversation ? Boolean(hasMoreByConversation[activeConversation.id]) : false;
 
   useLayoutEffect(() => {
+    const prependSnapshot = pendingPrependScrollRef.current;
+    const element = messagesListRef.current;
+
+    if (prependSnapshot && element) {
+      element.scrollTop = element.scrollHeight - prependSnapshot.scrollHeight + prependSnapshot.scrollTop;
+      pendingPrependScrollRef.current = null;
+      shouldAutoScrollRef.current = false;
+      return;
+    }
+
     const behavior = pendingScrollBehaviorRef.current;
 
     if (behavior) {
@@ -401,12 +412,23 @@ export default function MessagesPanel({
     }
 
     try {
+      const element = messagesListRef.current;
+      pendingPrependScrollRef.current = element
+        ? {
+            scrollHeight: element.scrollHeight,
+            scrollTop: element.scrollTop,
+          }
+        : null;
       setLoadingOlder(true);
       setMessageActionError('');
-      await loadMessages(activeConversation.id, {
+      const loadedMessages = await loadMessages(activeConversation.id, {
         appendOlder: true,
         before: activeMessages[0].createdAt,
       });
+
+      if (loadedMessages.length === 0) {
+        pendingPrependScrollRef.current = null;
+      }
     } finally {
       setLoadingOlder(false);
     }
