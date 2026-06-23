@@ -155,8 +155,8 @@ const changelogEntries = [
   {
     date: '2026-06-23',
     tag: 'release-2026-06-23-warm-panel-palette',
-    title: 'Warm panel palette refresh',
-    description: 'Интерфейс получил более тёплую палитру панелей на базе основных цветов portfolio-проекта, без изменения фона и без переноса старых акцентов.',
+    title: 'Portfolio panel palette refresh',
+    description: 'Интерфейс получил палитру панелей на базе основных surface-цветов portfolio-проекта, без изменения фона и без копирования его акцентов.',
     sections: [
       {
         title: 'Changed',
@@ -164,8 +164,8 @@ const changelogEntries = [
           {
             title: 'Interface',
             items: [
-              'Панели, карточки, навигация и элементы ленты переведены с холодного blue-gray на более тёплые surface-цвета.',
-              'Розово-бирюзовые акценты заменены на новую пару copper и sage, лучше подходящую к обновлённым панелям.',
+              'Панели, карточки, навигация и элементы ленты переведены с холодного blue-gray на surface-цвета из portfolio-проекта.',
+              'Акценты заменены на отдельную apricot, seafoam и soft green палитру, подобранную под обновлённые панели.',
               'Обновлены состояния hover, active, action-кнопки, composer/editor controls и визуальные акценты changelog.',
               'Фон страницы оставлен без изменений, чтобы сохранить текущую атмосферу приложения.',
             ],

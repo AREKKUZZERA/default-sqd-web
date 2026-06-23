@@ -2144,80 +2144,80 @@ nav[aria-label='Мобильная навигация'] {
   }
 }
 
-/* Warm panel pass: keeps the page background intact while shifting surfaces away from cold blue-gray. */
+/* Portfolio panel pass: uses the reference project's surfaces with project-specific accents. */
 .poster-header,
 .poster-mobile-search,
 nav[aria-label='Мобильная навигация'] {
-  border-color: rgba(245, 232, 218, 0.13);
-  background: rgba(25, 20, 17, 0.84);
+  border-color: rgba(255, 255, 255, 0.075);
+  background: rgba(18, 18, 18, 0.86);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
 }
 
 .poster-header:hover {
-  border-color: rgba(245, 232, 218, 0.2);
-  background: rgba(31, 25, 21, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(25, 24, 23, 0.92);
 }
 
 .poster-panel,
 .post-composer {
-  border-color: rgba(245, 232, 218, 0.12);
+  border-color: rgba(255, 255, 255, 0.055);
   background:
-    linear-gradient(180deg, rgba(245, 232, 218, 0.034), transparent 42%),
-    rgba(27, 23, 20, 0.91);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.032), transparent 42%),
+    rgba(33, 31, 30, 0.91);
 }
 
 .poster-panel:hover {
-  border-color: rgba(245, 232, 218, 0.18);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .poster-band {
   background:
-    radial-gradient(circle at 82% 10%, rgba(245, 232, 218, 0.12), transparent 9rem),
-    radial-gradient(circle at 12% 90%, rgba(214, 138, 94, 0.12), transparent 11rem),
-    linear-gradient(135deg, #080706 0%, #241f1b 54%, #0b0908 100%);
+    radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.1), transparent 9rem),
+    radial-gradient(circle at 12% 90%, rgba(255, 159, 90, 0.13), transparent 11rem),
+    linear-gradient(135deg, #0b0a0a 0%, #262321 54%, #191817 100%);
 }
 
 .poster-band::after {
   background:
-    linear-gradient(180deg, rgba(3, 4, 5, 0.02), rgba(3, 4, 5, 0.44)),
-    linear-gradient(90deg, rgba(143, 189, 155, 0.08), transparent 42%, rgba(214, 138, 94, 0.08));
+    linear-gradient(180deg, rgba(11, 10, 10, 0.02), rgba(11, 10, 10, 0.44)),
+    linear-gradient(90deg, rgba(143, 211, 199, 0.08), transparent 42%, rgba(255, 159, 90, 0.09));
 }
 
 .poster-avatar {
-  border-color: rgba(245, 232, 218, 0.28);
-  background: linear-gradient(180deg, rgba(245, 232, 218, 0.09), rgba(245, 232, 218, 0.03));
+  border-color: rgba(255, 255, 255, 0.17);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
   box-shadow:
-    0 0 0 3px rgba(10, 8, 7, 0.9),
-    0 0 0 4px rgba(245, 232, 218, 0.09),
+    0 0 0 3px rgba(11, 10, 10, 0.9),
+    0 0 0 4px rgba(255, 255, 255, 0.075),
     0 12px 28px rgba(0, 0, 0, 0.34);
 }
 
 .profile-mini-body,
 .profile-page-body {
-  background: linear-gradient(180deg, rgba(27, 23, 20, 0), rgba(27, 23, 20, 0.2));
+  background: linear-gradient(180deg, rgba(33, 31, 30, 0), rgba(33, 31, 30, 0.2));
 }
 
 .profile-mini-stat,
 .profile-stat-card {
-  border-color: rgba(245, 232, 218, 0.13);
+  border-color: rgba(255, 255, 255, 0.075);
   background:
-    linear-gradient(180deg, rgba(245, 232, 218, 0.036), transparent),
-    rgba(21, 17, 15, 0.74);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    rgba(38, 35, 33, 0.74);
 }
 
 .profile-mini-stat::before,
 .profile-stat-card::before {
-  background: linear-gradient(90deg, rgba(214, 138, 94, 0.78), transparent);
+  background: linear-gradient(90deg, rgba(255, 159, 90, 0.78), transparent);
 }
 
 .role-pill,
 .permission-badge {
-  background: rgba(20, 16, 14, 0.72);
+  background: rgba(33, 31, 30, 0.72);
 }
 
 .side-nav-item,
 .trend-card {
-  background: rgba(21, 17, 15, 0.66);
+  background: rgba(38, 35, 33, 0.66);
 }
 
 .side-nav-item:hover,
@@ -2225,121 +2225,121 @@ nav[aria-label='Мобильная навигация'] {
 .author-filter:hover,
 .sqd-button:hover,
 .poster-button:hover {
-  border-color: rgba(245, 232, 218, 0.21);
-  background: rgba(48, 41, 35, 0.76);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(45, 41, 39, 0.78);
 }
 
 .side-nav-item--active,
 .author-filter--active {
-  border-color: rgba(214, 138, 94, 0.38);
+  border-color: rgba(255, 159, 90, 0.38);
   background:
-    linear-gradient(90deg, rgba(214, 138, 94, 0.15), rgba(143, 189, 155, 0.08)),
-    rgba(27, 23, 20, 0.84);
-  box-shadow: inset 3px 0 0 rgba(214, 138, 94, 0.9);
+    linear-gradient(90deg, rgba(255, 159, 90, 0.15), rgba(143, 211, 199, 0.08)),
+    rgba(38, 35, 33, 0.84);
+  box-shadow: inset 3px 0 0 rgba(255, 159, 90, 0.9);
 }
 
 .author-filter--active {
-  box-shadow: inset 0 -2px 0 rgba(214, 138, 94, 0.9);
+  box-shadow: inset 0 -2px 0 rgba(255, 159, 90, 0.9);
 }
 
 .post-card,
 .comment-card,
 .activity-ribbon,
 .post-preview {
-  border-color: rgba(245, 232, 218, 0.12);
+  border-color: rgba(255, 255, 255, 0.055);
 }
 
 .post-card {
-  background: rgba(27, 23, 20, 0.91);
-  border-left-color: rgba(245, 232, 218, 0.14);
+  background: rgba(33, 31, 30, 0.91);
+  border-left-color: rgba(255, 255, 255, 0.08);
 }
 
 .post-card--own,
 .post-card--own:hover {
-  border-left-color: rgba(214, 138, 94, 0.66);
+  border-left-color: rgba(255, 159, 90, 0.66);
 }
 
 .post-card:hover {
-  border-color: rgba(245, 232, 218, 0.19);
-  background: rgba(32, 27, 23, 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(38, 35, 33, 0.95);
 }
 
 .post-tag,
 .poster-button[aria-pressed='true'],
 .filter-chip:not(.filter-chip--static):hover {
-  background: rgba(214, 138, 94, 0.12);
+  background: rgba(255, 159, 90, 0.14);
 }
 
 .activity-ribbon,
 .comment-card:hover {
-  background: rgba(27, 23, 20, 0.88);
+  background: rgba(33, 31, 30, 0.88);
 }
 
 .activity-ribbon {
-  box-shadow: inset 2px 0 0 rgba(143, 189, 155, 0.6);
+  box-shadow: inset 2px 0 0 rgba(143, 211, 199, 0.58);
 }
 
 .activity-ribbon--like {
-  box-shadow: inset 2px 0 0 rgba(214, 138, 94, 0.7);
+  box-shadow: inset 2px 0 0 rgba(255, 159, 90, 0.7);
 }
 
 .activity-ribbon--repost {
-  box-shadow: inset 2px 0 0 rgba(143, 189, 155, 0.7);
+  box-shadow: inset 2px 0 0 rgba(143, 211, 199, 0.7);
 }
 
 .activity-ribbon--bookmark {
-  box-shadow: inset 2px 0 0 rgba(223, 180, 111, 0.7);
+  box-shadow: inset 2px 0 0 rgba(242, 198, 109, 0.7);
 }
 
 .post-actions .poster-button[aria-label='Лайк'][aria-pressed='true'] {
-  border-color: rgba(214, 138, 94, 0.46);
-  color: #efb083;
+  border-color: rgba(255, 159, 90, 0.5);
+  color: #ffc28f;
 }
 
 .post-actions .poster-button[aria-label='Репост'][aria-pressed='true'] {
-  border-color: rgba(143, 189, 155, 0.46);
-  color: #b6d9be;
+  border-color: rgba(143, 211, 199, 0.46);
+  color: #b7e7df;
 }
 
 .post-actions .poster-button[aria-label='В избранное'][aria-pressed='true'] {
-  border-color: rgba(223, 180, 111, 0.46);
-  color: #f0ce8f;
+  border-color: rgba(242, 198, 109, 0.46);
+  color: #f7d98c;
 }
 
 .primary-action-button,
 .sqd-icon-action--publish,
 .sqd-icon-action--save {
-  border-color: rgba(143, 189, 155, 0.46) !important;
-  background: rgba(143, 189, 155, 0.14) !important;
-  color: #c0e0c7 !important;
+  border-color: rgba(134, 211, 154, 0.46) !important;
+  background: rgba(134, 211, 154, 0.14) !important;
+  color: #b7edc3 !important;
 }
 
 .primary-action-button:hover:not(:disabled),
 .sqd-icon-action--publish:not(:disabled):hover,
 .sqd-icon-action--save:not(:disabled):hover {
-  border-color: rgba(143, 189, 155, 0.64) !important;
-  background: rgba(143, 189, 155, 0.2) !important;
+  border-color: rgba(134, 211, 154, 0.64) !important;
+  background: rgba(134, 211, 154, 0.2) !important;
 }
 
 .sqd-icon-action {
-  border-color: rgba(245, 232, 218, 0.14);
-  background: rgba(24, 20, 17, 0.84);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(38, 35, 33, 0.84);
 }
 
 .sqd-icon-action--preview {
-  border-color: rgba(214, 138, 94, 0.36);
-  background: rgba(214, 138, 94, 0.1);
-  color: #efb083;
+  border-color: rgba(143, 211, 199, 0.34);
+  background: rgba(143, 211, 199, 0.1);
+  color: #b7e7df;
 }
 
 .github-changelog-hero::before {
-  background: linear-gradient(90deg, rgba(214, 138, 94, 0.72), rgba(143, 189, 155, 0.4), transparent);
+  background: linear-gradient(90deg, rgba(255, 159, 90, 0.72), rgba(143, 211, 199, 0.4), transparent);
 }
 
 .github-changelog-hero-icon {
-  border-color: rgba(214, 138, 94, 0.38);
-  background: rgba(214, 138, 94, 0.12);
-  color: #efb083;
+  border-color: rgba(255, 159, 90, 0.38);
+  background: rgba(255, 159, 90, 0.14);
+  color: #ffc28f;
 }
 
 .github-release-node {
@@ -2351,5 +2351,5 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .messages-chat--active .messages-composer {
-  background: rgba(22, 18, 15, 0.96);
+  background: rgba(33, 31, 30, 0.96);
 }
