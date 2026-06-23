@@ -19,7 +19,7 @@ const NOTIFICATION_LABELS = {
 };
 
 const MEDIA_BUCKET = 'avatars';
-const POST_PAGE_SIZE = 20;
+export const POST_PAGE_SIZE = 20;
 const SIGNED_MEDIA_TTL = 60 * 60;
 const SIGNED_MEDIA_CACHE_GRACE_SECONDS = 5 * 60;
 const STORAGE_OBJECT_PREFIXES = [
@@ -436,8 +436,8 @@ export async function fetchPostsPage(currentUserId, { cursor = null, limit = POS
   };
 }
 
-export async function fetchPosts(currentUserId) {
-  const page = await fetchPostsPage(currentUserId);
+export async function fetchPosts(currentUserId, options) {
+  const page = await fetchPostsPage(currentUserId, options);
   return page.posts;
 }
 
@@ -500,7 +500,7 @@ export async function fetchPostById(currentUserId, postId) {
   return mapPost(data, currentUserId, mediaMap);
 }
 
-export async function createPost({ currentUserId, hashtags, text }) {
+export async function createPost({ currentUserId, hashtags, limit, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -527,10 +527,10 @@ export async function createPost({ currentUserId, hashtags, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function updatePost({ currentUserId, hashtags, postId, text }) {
+export async function updatePost({ currentUserId, hashtags, limit, postId, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -558,10 +558,10 @@ export async function updatePost({ currentUserId, hashtags, postId, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function createComment({ currentUserId, postId, text }) {
+export async function createComment({ currentUserId, limit, postId, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -588,10 +588,10 @@ export async function createComment({ currentUserId, postId, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function deletePost({ currentUserId, postId }) {
+export async function deletePost({ currentUserId, limit, postId }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -606,10 +606,10 @@ export async function deletePost({ currentUserId, postId }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function deleteComment({ commentId, currentUserId }) {
+export async function deleteComment({ commentId, currentUserId, limit }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -624,10 +624,10 @@ export async function deleteComment({ commentId, currentUserId }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function updateComment({ commentId, currentUserId, text }) {
+export async function updateComment({ commentId, currentUserId, limit, text }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -652,10 +652,10 @@ export async function updateComment({ commentId, currentUserId, text }) {
     throw new Error(getErrorMessage(error));
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
-export async function toggleReaction({ active, currentUserId, postId, type }) {
+export async function toggleReaction({ active, currentUserId, limit, postId, type }) {
   if (!isSupabaseConfigured) {
     return [];
   }
@@ -681,7 +681,7 @@ export async function toggleReaction({ active, currentUserId, postId, type }) {
     }
   }
 
-  return fetchPosts(currentUserId);
+  return fetchPosts(currentUserId, { limit });
 }
 
 export async function updateProfile(profile) {

@@ -16,6 +16,7 @@ import {
   fetchProfiles,
   getReactionTypeByKey,
   markNotificationsRead,
+  POST_PAGE_SIZE,
   toggleReaction,
   updateComment as updateRemoteComment,
   updatePost as updateRemotePost,
@@ -44,6 +45,7 @@ const ProfilePage = lazy(() => import('../features/profile/ProfilePage.jsx'));
 const ModerationPanel = lazy(() => import('../features/moderation/ModerationPanel.jsx')); 
 
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, '');
+const POST_REFRESH_BUFFER = 5;
 
 const stripBasePath = (pathname = window.location.pathname) => {
   if (!APP_BASE_PATH || APP_BASE_PATH === '/') {
@@ -498,6 +500,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const notificationsRef = useRef(null);
   const settingsRef = useRef(null);
   const remoteReloadTimerRef = useRef(null);
+  const loadedPostsLimitRef = useRef(POST_PAGE_SIZE);
   const [activeView, setActiveView] = useState(getInitialView);
   const [currentUser, setCurrentUser] = useState(authenticatedUser);
   const [selectedProfileKey, setSelectedProfileKey] = useState(() => getProfileKeyFromPath() || authenticatedUser.userId || authenticatedUser.id);
@@ -523,6 +526,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
   const [backendError, setBackendError] = useState('');
   const onlineUserIds = useOnlinePresence(currentUser);
 
+  const currentUserId = currentUser?.id;
   const unreadNotifications = notifications.filter((item) => !item.readAt).length;
   const displayedBackendError = backendError || authError;
 
@@ -531,22 +535,29 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     localStorage.setItem('default-sqd-density', compactMode ? 'compact' : 'default');
   }, [compactMode]);
 
-  const loadRemoteData = useCallback(async () => {
-    if (!currentUser?.id) {
+  useEffect(() => {
+    loadedPostsLimitRef.current = Math.max(POST_PAGE_SIZE, posts.length);
+  }, [posts.length]);
+
+  const loadRemoteData = useCallback(async ({ preserveLoadedPosts = false } = {}) => {
+    if (!currentUserId) {
       return;
     }
 
     try {
       setBackendError('');
+      const postsLimit = preserveLoadedPosts
+        ? loadedPostsLimitRef.current + POST_REFRESH_BUFFER
+        : POST_PAGE_SIZE;
       const [remoteProfiles, postsPage, remoteNotifications] = await Promise.all([
         fetchProfiles(),
-        fetchPostsPage(currentUser.id),
-        fetchNotifications(currentUser.id),
+        fetchPostsPage(currentUserId, { limit: postsLimit }),
+        fetchNotifications(currentUserId),
       ]);
       let nextPosts = postsPage.posts;
 
       if (selectedPostId && !nextPosts.some((post) => isSamePostId(post.id, selectedPostId))) {
-        const selectedPost = await fetchPostById(currentUser.id, selectedPostId);
+        const selectedPost = await fetchPostById(currentUserId, selectedPostId);
 
         if (selectedPost) {
           nextPosts = [selectedPost, ...nextPosts];
@@ -558,26 +569,27 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       setPostsCursor(postsPage.nextCursor);
       setPostsHasMore(postsPage.hasMore);
       setNotifications(remoteNotifications);
+      loadedPostsLimitRef.current = Math.max(POST_PAGE_SIZE, nextPosts.length);
     } catch (error) {
       setBackendError(error.message);
     } finally {
       setBackendReady(true);
     }
-  }, [currentUser, selectedPostId]);
+  }, [currentUserId, selectedPostId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadRemoteData);
   }, [loadRemoteData]);
 
   useEffect(() => {
-    if (!currentUser?.id) {
+    if (!currentUserId) {
       return undefined;
     }
 
     const scheduleRemoteReload = () => {
       window.clearTimeout(remoteReloadTimerRef.current);
       remoteReloadTimerRef.current = window.setTimeout(() => {
-        void loadRemoteData();
+        void loadRemoteData({ preserveLoadedPosts: true });
       }, 350);
     };
     const scheduleProfileReload = (payload) => {
@@ -587,19 +599,19 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     };
 
     const channel = supabase
-      .channel(`default-sqd-release-${currentUser.id}`)
+      .channel(`default-sqd-release-${currentUserId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleProfileReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, scheduleRemoteReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, scheduleRemoteReload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reactions' }, scheduleRemoteReload)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUser.id}` }, scheduleRemoteReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${currentUserId}` }, scheduleRemoteReload)
       .subscribe();
 
     return () => {
       window.clearTimeout(remoteReloadTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [currentUser?.id, loadRemoteData]);
+  }, [currentUserId, loadRemoteData]);
 
   useEffect(() => {
     if (!notificationsOpen && !settingsOpen) {
@@ -704,24 +716,29 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const hashtagTrends = useMemo(() => buildHashtagTrends(posts), [posts]);
 
-  const replacePostsFromMutation = (remotePosts) => {
+  const getPostMutationLimit = useCallback((extraPosts = 0) => Math.max(POST_PAGE_SIZE, loadedPostsLimitRef.current + extraPosts), []);
+
+  const replacePostsFromMutation = (remotePosts, limit = POST_PAGE_SIZE) => {
     setPosts(remotePosts);
     setPostsCursor(remotePosts.at(-1)?.createdAt || null);
-    setPostsHasMore(remotePosts.length >= 20);
+    setPostsHasMore(remotePosts.length >= limit);
+    loadedPostsLimitRef.current = Math.max(POST_PAGE_SIZE, remotePosts.length);
   };
 
-  const loadMorePosts = async () => {
-    if (!postsHasMore || !postsCursor || loadingMorePosts || !currentUser?.id) {
+  const loadMorePosts = useCallback(async () => {
+    if (!postsHasMore || !postsCursor || loadingMorePosts || !currentUserId) {
       return;
     }
 
     try {
       setLoadingMorePosts(true);
       setBackendError('');
-      const nextPage = await fetchPostsPage(currentUser.id, { cursor: postsCursor });
+      const nextPage = await fetchPostsPage(currentUserId, { cursor: postsCursor });
       setPosts((items) => {
         const seen = new Set(items.map((post) => String(post.id)));
-        return [...items, ...nextPage.posts.filter((post) => !seen.has(String(post.id)))];
+        const nextPosts = [...items, ...nextPage.posts.filter((post) => !seen.has(String(post.id)))];
+        loadedPostsLimitRef.current = Math.max(POST_PAGE_SIZE, nextPosts.length);
+        return nextPosts;
       });
       setPostsCursor(nextPage.nextCursor);
       setPostsHasMore(nextPage.hasMore);
@@ -730,14 +747,15 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     } finally {
       setLoadingMorePosts(false);
     }
-  };
+  }, [currentUserId, loadingMorePosts, postsCursor, postsHasMore]);
 
   const addPost = async ({ hashtags, text }) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit(1);
 
     try {
-      const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, text });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await createRemotePost({ currentUserId: currentUser.id, hashtags, limit: postsLimit, text });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -746,6 +764,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const addComment = async (postId, text) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
     const temporaryComment = {
       id: `pending-comment-${Date.now()}`,
       author: displayedUser.name,
@@ -771,8 +790,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     );
 
     try {
-      const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, postId, text });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await createRemoteComment({ currentUserId: currentUser.id, limit: postsLimit, postId, text });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -781,11 +800,12 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const deletePost = async (postId) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
     setPosts((items) => items.filter((post) => post.id !== postId));
 
     try {
-      const remotePosts = await deleteRemotePost({ currentUserId: currentUser.id, postId });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await deleteRemotePost({ currentUserId: currentUser.id, limit: postsLimit, postId });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -794,6 +814,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const deleteComment = async (commentId) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
     setPosts((items) =>
       items.map((post) => ({
         ...post,
@@ -803,8 +824,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     );
 
     try {
-      const remotePosts = await deleteRemoteComment({ commentId, currentUserId: currentUser.id });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await deleteRemoteComment({ commentId, currentUserId: currentUser.id, limit: postsLimit });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -813,6 +834,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const updateComment = async (commentId, text) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
     setPosts((items) =>
       items.map((post) => ({
         ...post,
@@ -821,8 +843,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     );
 
     try {
-      const remotePosts = await updateRemoteComment({ commentId, currentUserId: currentUser.id, text });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await updateRemoteComment({ commentId, currentUserId: currentUser.id, limit: postsLimit, text });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -831,6 +853,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
 
   const updatePost = async (postId, text) => {
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
     const hashtags = extractHashtags(text);
 
     setPosts((items) =>
@@ -838,8 +861,8 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     );
 
     try {
-      const remotePosts = await updateRemotePost({ currentUserId: currentUser.id, hashtags, postId, text });
-      replacePostsFromMutation(remotePosts);
+      const remotePosts = await updateRemotePost({ currentUserId: currentUser.id, hashtags, limit: postsLimit, postId, text });
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       throw error;
@@ -878,6 +901,7 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
     const countKey = type === 'like' ? 'likes' : type === 'repost' ? 'reposts' : null;
     const listKey = type === 'like' ? 'likedBy' : type === 'repost' ? 'repostedBy' : 'bookmarkedBy';
     const previousPosts = posts;
+    const postsLimit = getPostMutationLimit();
 
     setPosts((items) =>
       items.map((item) => {
@@ -906,10 +930,11 @@ export default function AppShell({ authenticatedUser, authError = '', onSignOut 
       const remotePosts = await toggleReaction({
         active: wasActive,
         currentUserId: currentUser.id,
+        limit: postsLimit,
         postId,
         type,
       });
-      replacePostsFromMutation(remotePosts);
+      replacePostsFromMutation(remotePosts, postsLimit);
     } catch (error) {
       setPosts(previousPosts);
       setBackendError(error.message);
