@@ -3,7 +3,6 @@ import Avatar from '../../shared/ui/Avatar.jsx';
 import Panel from '../../shared/ui/Panel.jsx';
 import PermissionBadges from '../../shared/ui/PermissionBadges.jsx';
 import RolePill from '../../shared/ui/RolePill.jsx';
-import { getPresenceTone, USER_STATUS_OPTIONS } from '../../shared/utils/presence.js';
 
 const sidebarNavigation = [
   { icon: Home, label: 'Лента', target: 'feed' },
@@ -17,7 +16,7 @@ function getMiniNameStyle(name = '') {
   return { fontSize: `${size.toFixed(2)}rem` };
 }
 
-export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, onUpdateProfile, trends }) {
+export default function ProfilePanel({ activeView, currentUser, onNavigate, onOpenProfile, onSelectTopic, trends }) {
   const visibleTrends = trends.slice(0, 5);
 
   return (
@@ -31,32 +30,15 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
         </button>
 
         <div className="profile-mini-body -mt-8 p-4">
-          <div className="profile-mini-head flex items-end justify-between gap-3">
+          <div className="profile-mini-head flex items-start gap-3">
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
               <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" status={currentUser.status} />
             </button>
-            <label className="profile-mini-status grid gap-1 text-right">
-              <span className="font-mono text-[0.52rem] uppercase tracking-[0.08em] text-muted">статус</span>
-              <select
-                aria-label="Статус онлайн"
-                className={[
-                  'status-select status-pill rounded-sqd-xs border px-2.5 py-1.5 text-xs font-bold uppercase outline-none',
-                  `status-pill--${getPresenceTone(currentUser)}`,
-                ].join(' ')}
-                onChange={(event) => onUpdateProfile?.((profile) => ({ ...profile, status: event.target.value }))}
-                value={currentUser.status || 'online'}
-              >
-                {USER_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
+            <button className="profile-mini-identity min-w-0 flex-1 text-left" onClick={onOpenProfile} type="button">
+              <h2 className="profile-mini-name poster-title font-display leading-none text-text" style={getMiniNameStyle(currentUser.name)} title={currentUser.name}>{currentUser.name}</h2>
+              <p className="mt-1 font-mono text-[0.68rem] text-muted">@{currentUser.userId}</p>
+            </button>
           </div>
-
-          <button className="mt-4 block w-full text-left" onClick={onOpenProfile} type="button">
-            <h2 className="profile-mini-name poster-title font-display leading-none text-text" style={getMiniNameStyle(currentUser.name)} title={currentUser.name}>{currentUser.name}</h2>
-            <p className="mt-1 font-mono text-[0.68rem] text-muted">@{currentUser.userId}</p>
-          </button>
 
           <p className="profile-mini-bio mt-4 text-sm leading-6 text-text-soft">{currentUser.bio || 'Профиль пока без описания.'}</p>
 

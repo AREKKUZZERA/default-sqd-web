@@ -84,7 +84,7 @@ export default function PostComposer({ currentUser, onPost }) {
   return (
     <form className="post-composer rounded-sqd-md border border-border bg-surface/90 p-4 shadow-[var(--shadow-panel)] backdrop-blur-md" onSubmit={handleSubmit}>
       <div className="post-composer-layout flex gap-3">
-        <Avatar active image={currentUser.avatarImage} label={currentUser.avatar} />
+        <Avatar image={currentUser.avatarImage} label={currentUser.avatar} showStatus={false} />
         <div className="post-composer-body relative min-w-0 flex-1">
           <textarea
             className="autosize-textarea min-h-24 w-full resize-y rounded-sqd-sm border border-border bg-bg-soft/75 p-3 text-sm leading-6 text-text outline-none transition placeholder:text-muted focus:border-border-strong"

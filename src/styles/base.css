@@ -1935,9 +1935,13 @@ nav[aria-label='Мобильная навигация'] {
   min-width: 0;
 }
 
-.profile-mini-status,
 .profile-status-control {
   min-width: 9.4rem;
+}
+
+.profile-mini-identity {
+  align-self: flex-start;
+  padding-top: 0.8rem;
 }
 
 .status-select,

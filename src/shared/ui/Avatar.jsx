@@ -1,6 +1,6 @@
 import { normalizePresenceStatus } from '../utils/presence.js';
 
-export default function Avatar({ label, image, size = 'md', active = false, status = 'online' }) {
+export default function Avatar({ label, image, size = 'md', active = false, status = 'online', showStatus = true }) {
   const sizes = {
     sm: 'h-9 w-9 text-[0.65rem]',
     md: 'h-11 w-11 text-xs',
@@ -21,13 +21,15 @@ export default function Avatar({ label, image, size = 'md', active = false, stat
       aria-hidden="true"
     >
       {image ? <img alt="" className="h-full w-full rounded-sqd-sm object-cover" src={image} /> : label}
-      <span
-        className={[
-          'avatar-status-dot absolute bottom-0 right-0 z-10 rounded-full',
-          statusSizes[size],
-          active ? `avatar-status-dot--${normalizePresenceStatus(status)}` : 'avatar-status-dot--offline',
-        ].join(' ')}
-      />
+      {showStatus ? (
+        <span
+          className={[
+            'avatar-status-dot absolute bottom-0 right-0 z-10 rounded-full',
+            statusSizes[size],
+            active ? `avatar-status-dot--${normalizePresenceStatus(status)}` : 'avatar-status-dot--offline',
+          ].join(' ')}
+        />
+      ) : null}
     </span>
   );
 }

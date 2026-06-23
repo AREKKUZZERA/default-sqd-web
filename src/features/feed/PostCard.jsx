@@ -266,7 +266,7 @@ export default function PostCard({
           onClick={() => onOpenProfile?.(post.ownerId)}
           type="button"
         >
-          <Avatar image={post.avatarImage} label={post.avatar} />
+          <Avatar image={post.avatarImage} label={post.avatar} showStatus={false} />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -467,7 +467,7 @@ export default function PostCard({
                           onClick={() => onOpenProfile?.(comment.authorId)}
                           type="button"
                         >
-                          <Avatar image={comment.avatarImage} label={comment.avatar} size="sm" />
+                          <Avatar image={comment.avatarImage} label={comment.avatar} showStatus={false} size="sm" />
                         </button>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
