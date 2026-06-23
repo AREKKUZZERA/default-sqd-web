@@ -1,14 +1,14 @@
 :root {
-  --color-bg: #0b1118;
-  --color-bg-soft: #101821;
-  --color-surface: #17212b;
-  --color-surface-2: #1f2c38;
-  --color-surface-3: #263747;
-  --color-border: rgba(196, 213, 230, 0.1);
-  --color-border-strong: rgba(196, 213, 230, 0.24);
+  --color-bg: #060a0f;
+  --color-bg-soft: #0a1017;
+  --color-surface: #101922;
+  --color-surface-2: #172331;
+  --color-surface-3: #1d2d3d;
+  --color-border: rgba(174, 199, 224, 0.1);
+  --color-border-strong: rgba(174, 199, 224, 0.23);
   --color-text: #f3f7fb;
   --color-text-soft: #a9b7c5;
-  --color-muted: #748392;
+  --color-muted: #6b7a89;
   --color-accent: #3390ec;
   --color-accent-soft: rgba(51, 144, 236, 0.16);
   --color-accent-glow: rgba(51, 144, 236, 0.24);
@@ -25,16 +25,16 @@
   --radius-xs: 8px;
   --radius-sm: 8px;
   --radius-md: 8px;
-  --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.38);
+  --shadow-panel: 0 18px 54px rgba(0, 0, 0, 0.48);
   --shell-width: 1180px;
   --poster-cyan: #7fc3ff;
   --poster-pink: #3390ec;
   --poster-lime: #4fd18b;
   --poster-orange: #e9be61;
   --y2k-white: #d9e6f2;
-  --y2k-ink: #071017;
-  --y2k-grid: rgba(196, 213, 230, 0.045);
-  --y2k-scan: rgba(196, 213, 230, 0.02);
+  --y2k-ink: #050b11;
+  --y2k-grid: rgba(174, 199, 224, 0.04);
+  --y2k-scan: rgba(174, 199, 224, 0.018);
 }
 
 @theme inline {

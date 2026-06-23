@@ -732,8 +732,9 @@ body {
 }
 
 .post-actions .poster-button[aria-label='Лайк'][aria-pressed='true'] {
-  border-color: rgba(51, 144, 236, 0.5);
-  color: #9fd2ff;
+  border-color: rgba(255, 79, 123, 0.58);
+  background: rgba(255, 79, 123, 0.14);
+  color: #ff7fa0;
 }
 
 .post-actions .poster-button[aria-label='Репост'][aria-pressed='true'] {
@@ -932,7 +933,7 @@ body {
 }
 
 .activity-ribbon--like {
-  box-shadow: inset 2px 0 0 rgba(51, 144, 236, 0.72);
+  box-shadow: inset 2px 0 0 rgba(255, 79, 123, 0.76);
 }
 
 .activity-ribbon--repost {
@@ -2148,28 +2149,28 @@ nav[aria-label='Мобильная навигация'] {
 .poster-header,
 .poster-mobile-search,
 nav[aria-label='Мобильная навигация'] {
-  border-color: rgba(196, 213, 230, 0.1);
-  background: rgba(12, 20, 30, 0.88);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  border-color: rgba(174, 199, 224, 0.09);
+  background: rgba(7, 12, 18, 0.9);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.46);
 }
 
 .poster-header:hover {
-  border-color: rgba(196, 213, 230, 0.18);
-  background: rgba(18, 30, 43, 0.92);
+  border-color: rgba(174, 199, 224, 0.16);
+  background: rgba(10, 18, 27, 0.94);
 }
 
 .poster-panel,
 .post-composer {
-  border-color: rgba(196, 213, 230, 0.09);
-  background: rgba(23, 33, 43, 0.92);
+  border-color: rgba(174, 199, 224, 0.08);
+  background: rgba(12, 19, 27, 0.94);
 }
 
 .poster-panel:hover {
-  border-color: rgba(196, 213, 230, 0.17);
+  border-color: rgba(174, 199, 224, 0.15);
 }
 
 .poster-band {
-  background: #122030;
+  background: #0c1723;
 }
 
 .poster-band::after {
@@ -2177,11 +2178,11 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .poster-avatar {
-  border-color: rgba(196, 213, 230, 0.16);
-  background: rgba(196, 213, 230, 0.055);
+  border-color: rgba(174, 199, 224, 0.15);
+  background: rgba(174, 199, 224, 0.05);
   box-shadow:
-    0 0 0 3px rgba(11, 10, 10, 0.9),
-    0 0 0 4px rgba(196, 213, 230, 0.07),
+    0 0 0 3px rgba(5, 8, 12, 0.92),
+    0 0 0 4px rgba(174, 199, 224, 0.06),
     0 12px 28px rgba(0, 0, 0, 0.34);
 }
 
@@ -2192,8 +2193,8 @@ nav[aria-label='Мобильная навигация'] {
 
 .profile-mini-stat,
 .profile-stat-card {
-  border-color: rgba(196, 213, 230, 0.1);
-  background: rgba(31, 44, 56, 0.72);
+  border-color: rgba(174, 199, 224, 0.09);
+  background: rgba(18, 29, 40, 0.76);
 }
 
 .profile-mini-stat::before,
@@ -2203,12 +2204,12 @@ nav[aria-label='Мобильная навигация'] {
 
 .role-pill,
 .permission-badge {
-  background: rgba(23, 33, 43, 0.72);
+  background: rgba(13, 21, 30, 0.76);
 }
 
 .side-nav-item,
 .trend-card {
-  background: rgba(31, 44, 56, 0.66);
+  background: rgba(17, 27, 38, 0.7);
 }
 
 .side-nav-item:hover,
@@ -2217,7 +2218,7 @@ nav[aria-label='Мобильная навигация'] {
 .sqd-button:hover,
 .poster-button:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(38, 55, 71, 0.78);
+  background: rgba(25, 39, 54, 0.8);
 }
 
 .side-nav-item--active,
@@ -2235,12 +2236,12 @@ nav[aria-label='Мобильная навигация'] {
 .comment-card,
 .activity-ribbon,
 .post-preview {
-  border-color: rgba(196, 213, 230, 0.09);
+  border-color: rgba(174, 199, 224, 0.08);
 }
 
 .post-card {
-  background: rgba(23, 33, 43, 0.92);
-  border-left-color: rgba(196, 213, 230, 0.1);
+  background: rgba(12, 19, 27, 0.94);
+  border-left-color: rgba(174, 199, 224, 0.09);
 }
 
 .post-card--own,
@@ -2249,8 +2250,8 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .post-card:hover {
-  border-color: rgba(196, 213, 230, 0.16);
-  background: rgba(31, 44, 56, 0.96);
+  border-color: rgba(174, 199, 224, 0.14);
+  background: rgba(17, 27, 38, 0.97);
 }
 
 .post-tag,
@@ -2261,7 +2262,7 @@ nav[aria-label='Мобильная навигация'] {
 
 .activity-ribbon,
 .comment-card:hover {
-  background: rgba(23, 33, 43, 0.9);
+  background: rgba(12, 19, 27, 0.92);
 }
 
 .activity-ribbon {
@@ -2269,7 +2270,7 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .activity-ribbon--like {
-  box-shadow: inset 2px 0 0 rgba(51, 144, 236, 0.72);
+  box-shadow: inset 2px 0 0 rgba(255, 79, 123, 0.78);
 }
 
 .activity-ribbon--repost {
@@ -2281,8 +2282,9 @@ nav[aria-label='Мобильная навигация'] {
 }
 
 .post-actions .poster-button[aria-label='Лайк'][aria-pressed='true'] {
-  border-color: rgba(51, 144, 236, 0.54);
-  color: #9fd2ff;
+  border-color: rgba(255, 79, 123, 0.62);
+  background: rgba(255, 79, 123, 0.16);
+  color: #ff7fa0;
 }
 
 .post-actions .poster-button[aria-label='Репост'][aria-pressed='true'] {
@@ -2312,7 +2314,7 @@ nav[aria-label='Мобильная навигация'] {
 
 .sqd-icon-action {
   border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(31, 44, 56, 0.84);
+  background: rgba(17, 27, 38, 0.86);
 }
 
 .sqd-icon-action--preview {
