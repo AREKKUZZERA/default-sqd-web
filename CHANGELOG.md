@@ -2,6 +2,12 @@
 
 ## 2026-06-23
 
+### Changed
+
+- Warm up the interface panel palette using the portfolio project's base surface colors while keeping the site background unchanged.
+- Replace the old pink/cyan accent mix with copper and sage accents tuned for the warmer panels.
+- Refresh panel, card, navigation, post action, composer, and changelog styling to match the updated palette.
+
 ### Fixed
 
 - Hide presence status indicators from post cards, comments, and the post composer.

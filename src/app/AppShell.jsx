@@ -154,6 +154,28 @@ const shouldReloadForProfileChange = (payload) => {
 const changelogEntries = [
   {
     date: '2026-06-23',
+    tag: 'release-2026-06-23-warm-panel-palette',
+    title: 'Warm panel palette refresh',
+    description: 'Интерфейс получил более тёплую палитру панелей на базе основных цветов portfolio-проекта, без изменения фона и без переноса старых акцентов.',
+    sections: [
+      {
+        title: 'Changed',
+        groups: [
+          {
+            title: 'Interface',
+            items: [
+              'Панели, карточки, навигация и элементы ленты переведены с холодного blue-gray на более тёплые surface-цвета.',
+              'Розово-бирюзовые акценты заменены на новую пару copper и sage, лучше подходящую к обновлённым панелям.',
+              'Обновлены состояния hover, active, action-кнопки, composer/editor controls и визуальные акценты changelog.',
+              'Фон страницы оставлен без изменений, чтобы сохранить текущую атмосферу приложения.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-06-23',
     tag: 'release-2026-06-23-profile-polish',
     title: 'Profile presence badge and interface polish',
     description: 'Обновлён визуальный слой профиля, статусных бейджей и адаптивной компоновки без изменения пользовательских сценариев.',
