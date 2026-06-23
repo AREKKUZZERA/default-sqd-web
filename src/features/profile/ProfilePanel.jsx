@@ -25,15 +25,16 @@ export default function ProfilePanel({ activeView, currentUser, onNavigate, onOp
         <button className="block w-full text-left" onClick={onOpenProfile} type="button">
           <div
             className={[
-              'profile-mini-band poster-band h-24 border-b border-border',
+              'profile-mini-band poster-band relative h-24 overflow-hidden border-b border-border',
               currentUser.bannerImage ? 'profile-band--media' : '',
             ].join(' ')}
-            style={currentUser.bannerImage ? { backgroundImage: `url(${currentUser.bannerImage})` } : undefined}
-          />
+          >
+            {currentUser.bannerImage ? <img alt="" className="absolute inset-0 z-[3] block h-full w-full object-contain object-center" src={currentUser.bannerImage} /> : null}
+          </div>
         </button>
 
-        <div className="profile-mini-body -mt-8 p-4">
-          <div className="profile-mini-head flex items-start gap-3">
+        <div className="profile-mini-body p-4">
+          <div className="profile-mini-head -mt-8 flex items-start gap-3">
             <button aria-label="Открыть профиль" onClick={onOpenProfile} type="button">
               <Avatar active={currentUser.isOnline} image={currentUser.avatarImage} label={currentUser.avatar} size="lg" status={currentUser.status} />
             </button>

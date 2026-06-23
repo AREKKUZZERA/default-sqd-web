@@ -460,13 +460,14 @@ export default function ProfilePage({
       <Panel className="profile-page-card mb-4 overflow-hidden">
         <div
           className={[
-            'profile-hero-band poster-band aspect-[3/1] border-b border-border',
+            'profile-hero-band poster-band relative aspect-[3/1] overflow-hidden border-b border-border',
             displayedBannerImage ? 'profile-band--media' : '',
           ].join(' ')}
-          style={displayedBannerImage ? { backgroundImage: `url(${displayedBannerImage})` } : undefined}
-        />
-        <div className="profile-page-body -mt-10 p-5">
-          <div className="flex flex-wrap items-end gap-4">
+        >
+          {displayedBannerImage ? <img alt="" className="absolute inset-0 z-[3] block h-full w-full object-contain object-center" src={displayedBannerImage} /> : null}
+        </div>
+        <div className="profile-page-body p-5">
+          <div className="profile-avatar-row -mt-10 flex flex-wrap items-end gap-4">
             <Avatar active={profileUser.isOnline} image={displayedAvatarImage} label={profileUser.avatar} size="lg" status={editing ? draft.status : profileUser.status} />
           </div>
 
