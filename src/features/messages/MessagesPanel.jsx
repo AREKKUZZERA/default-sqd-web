@@ -131,7 +131,10 @@ export default function MessagesPanel({
     }
 
     if (behavior === 'auto') {
+      const previousScrollBehavior = element.style.scrollBehavior;
+      element.style.scrollBehavior = 'auto';
       element.scrollTop = element.scrollHeight;
+      element.style.scrollBehavior = previousScrollBehavior;
       return;
     }
 
@@ -190,6 +193,10 @@ export default function MessagesPanel({
     try {
       setError('');
       const result = await fetchMessages(conversationId, { before });
+      if (scroll) {
+        requestScrollMessagesToBottom('auto');
+      }
+
       setHasMoreByConversation((items) => ({ ...items, [conversationId]: result.hasMore }));
       setMessagesByConversation((items) => ({
         ...items,
@@ -198,10 +205,6 @@ export default function MessagesPanel({
 
       if (markRead) {
         await markConversationRead({ conversationId, currentUserId: currentUserId });
-      }
-
-      if (scroll) {
-        requestScrollMessagesToBottom('auto');
       }
 
       return result.messages;
