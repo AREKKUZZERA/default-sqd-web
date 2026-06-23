@@ -550,7 +550,7 @@ export default function MessagesPanel({
         </div>
       ) : null}
 
-      <Panel className={['messages-panel overflow-hidden', expanded ? 'messages-panel--expanded lg:min-h-[620px]' : ''].join(' ')}>
+      <Panel className={['messages-panel overflow-hidden', expanded ? 'messages-panel--expanded' : ''].join(' ')}>
         <div className="messages-sidebar-header border-b border-border p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-ui text-lg font-bold text-text">Диалоги</h2>
@@ -660,7 +660,7 @@ export default function MessagesPanel({
           </div>
 
           <div className={[
-            'messages-chat flex min-h-[520px] min-w-0 flex-col p-4',
+            'messages-chat flex min-h-0 min-w-0 flex-col p-4',
             activeParticipant ? 'messages-chat--active' : '',
           ].join(' ')}>
             {activeParticipant ? (
