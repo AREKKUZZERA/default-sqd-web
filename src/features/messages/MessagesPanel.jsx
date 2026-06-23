@@ -619,6 +619,7 @@ export default function MessagesPanel({
 
                 return (
                   <button
+                    aria-current={activeId === conversation.id ? 'true' : undefined}
                     className={[
                       'flex min-w-0 items-center gap-3 border-b border-border px-4 py-3 text-left transition last:border-b-0',
                       activeId === conversation.id ? 'bg-accent-soft text-text shadow-[inset_3px_0_0_var(--color-positive)]' : 'bg-transparent hover:bg-white/[0.025]',
