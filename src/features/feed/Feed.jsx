@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import Panel from '../../shared/ui/Panel.jsx';
 import PostCard from './PostCard.jsx';
 import PostComposer from './PostComposer.jsx';
@@ -28,8 +29,34 @@ export default function Feed({
   query,
   selectedPostId,
 }) {
+  const loadMoreRef = useRef(null);
   const activeAuthorMeta = authors.find((author) => author.value === activeAuthor && author.value !== 'all');
   const hasActiveFilters = Boolean(selectedPostId || activeTopic !== 'all' || activeAuthorMeta || query?.trim());
+
+  useEffect(() => {
+    if (!hasMore || loadingMore || selectedPostId || !onLoadMore) {
+      return undefined;
+    }
+
+    const element = loadMoreRef.current;
+
+    if (!element || !('IntersectionObserver' in window)) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: '480px 0px 720px' },
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore, selectedPostId]);
 
   return (
     <section className="min-w-0" id="feed">
@@ -131,9 +158,12 @@ export default function Feed({
       </div>
 
       {hasMore ? (
-        <div className="mt-4 flex justify-center">
+        <div className="feed-load-more mt-4 grid justify-items-center gap-2" ref={loadMoreRef}>
+          <div className="feed-load-more__status rounded-sqd-xs border border-border bg-surface-2/70 px-3 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-[0.08em] text-muted">
+            {loadingMore ? 'загружаем ленту...' : 'листайте дальше'}
+          </div>
           <button
-            className="poster-button rounded-sqd-xs border border-border bg-surface px-4 py-2 font-ui text-sm font-bold text-text transition hover:border-border-strong hover:bg-surface-2 disabled:cursor-wait disabled:text-muted"
+            className="poster-button feed-load-more__button rounded-sqd-xs border border-border bg-surface px-4 py-2 font-ui text-sm font-bold text-text transition hover:border-border-strong hover:bg-surface-2 disabled:cursor-wait disabled:text-muted"
             disabled={loadingMore}
             onClick={onLoadMore}
             type="button"
