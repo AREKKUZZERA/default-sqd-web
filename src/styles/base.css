@@ -2350,6 +2350,10 @@ nav[aria-label='Мобильная навигация'] {
   background: rgba(10, 16, 23, 0.96);
 }
 
+.messages-panel--expanded .messages-sidebar-header {
+  flex: 0 0 auto;
+}
+
 .messages-panel--expanded .messages-layout {
   min-height: 0;
 }
@@ -2547,13 +2551,16 @@ nav[aria-label='Мобильная навигация'] {
 
 @media (min-width: 641px) {
   .messages-panel--expanded {
+    display: flex;
+    flex-direction: column;
     height: clamp(34rem, calc(100dvh - 7.25rem), 52rem);
     min-height: 0;
   }
 
   .messages-panel--expanded .messages-layout {
-    height: 100%;
+    flex: 1 1 auto;
     grid-template-columns: 320px minmax(0, 1fr);
+    min-height: 0;
     overflow: hidden;
   }
 
