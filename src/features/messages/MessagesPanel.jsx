@@ -130,6 +130,11 @@ export default function MessagesPanel({
       return;
     }
 
+    if (behavior === 'auto') {
+      element.scrollTop = element.scrollHeight;
+      return;
+    }
+
     element.scrollTo({ top: element.scrollHeight, behavior });
   }, []);
 
