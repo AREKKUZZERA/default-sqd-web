@@ -1,21 +1,21 @@
 :root {
-  --color-bg: #050607;
-  --color-bg-soft: #0b0d0f;
-  --color-surface: #17191b;
-  --color-surface-2: #202326;
-  --color-surface-3: #2a2e31;
-  --color-border: rgba(235, 232, 224, 0.08);
-  --color-border-strong: rgba(235, 232, 224, 0.2);
-  --color-text: #f3efe6;
-  --color-text-soft: #b9b3a8;
-  --color-muted: #817a70;
-  --color-accent: #d9a25f;
-  --color-accent-soft: rgba(217, 162, 95, 0.14);
-  --color-accent-glow: rgba(217, 162, 95, 0.2);
-  --color-accent-light: #efc78e;
-  --color-positive: #8ab89a;
-  --color-positive-soft: rgba(138, 184, 154, 0.13);
-  --color-warning: #dfbd72;
+  --color-bg: #0b1118;
+  --color-bg-soft: #101821;
+  --color-surface: #17212b;
+  --color-surface-2: #1f2c38;
+  --color-surface-3: #263747;
+  --color-border: rgba(196, 213, 230, 0.1);
+  --color-border-strong: rgba(196, 213, 230, 0.24);
+  --color-text: #f3f7fb;
+  --color-text-soft: #a9b7c5;
+  --color-muted: #748392;
+  --color-accent: #3390ec;
+  --color-accent-soft: rgba(51, 144, 236, 0.16);
+  --color-accent-glow: rgba(51, 144, 236, 0.24);
+  --color-accent-light: #7fc3ff;
+  --color-positive: #4fd18b;
+  --color-positive-soft: rgba(79, 209, 139, 0.13);
+  --color-warning: #e9be61;
   --color-danger: #e57678;
   --color-danger-soft: rgba(229, 118, 120, 0.13);
   --font-display: 'Arial Black', 'Impact', system-ui, sans-serif;
@@ -27,14 +27,14 @@
   --radius-md: 8px;
   --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.38);
   --shell-width: 1180px;
-  --poster-cyan: #8ab89a;
-  --poster-pink: #d9a25f;
-  --poster-lime: #9fbf9e;
-  --poster-orange: #dfbd72;
-  --y2k-white: #ded5cf;
-  --y2k-ink: #030303;
-  --y2k-grid: rgba(231, 221, 214, 0.045);
-  --y2k-scan: rgba(231, 221, 214, 0.02);
+  --poster-cyan: #7fc3ff;
+  --poster-pink: #3390ec;
+  --poster-lime: #4fd18b;
+  --poster-orange: #e9be61;
+  --y2k-white: #d9e6f2;
+  --y2k-ink: #071017;
+  --y2k-grid: rgba(196, 213, 230, 0.045);
+  --y2k-scan: rgba(196, 213, 230, 0.02);
 }
 
 @theme inline {
