@@ -753,7 +753,7 @@ export default function MessagesPanel({
                             ) : null}
                             <div
                               className={[
-                                'message-bubble max-w-[85%] rounded-sqd-sm border px-3 py-2 text-sm leading-5',
+                                'message-bubble border text-sm',
                                 own ? 'message-bubble--own border-border-strong bg-accent-soft text-text' : 'message-bubble--other border-border bg-surface-2/70 text-text-soft',
                                 message.failed ? 'message-bubble--failed border-warning/50 bg-warning/10 text-warning' : '',
                                 editing ? 'message-bubble--editing' : '',
